@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/expense_categories.dart';
 import '../../../core/utils/currency_formatter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -249,6 +250,7 @@ class _FeedCardState extends State<_FeedCard> {
     final sharedAt = (data['sharedAt'] as Timestamp?)?.toDate() ?? DateTime.now();
     final emoji = data['emoji'] as String? ?? '💸';
     final likes = (data['likes'] as num?)?.toInt() ?? 0;
+    final imageUrl = data['imageUrl'] as String?;
 
     final cat = ExpenseCategory.values.firstWhere(
       (c) => c.name == category,
@@ -339,6 +341,19 @@ class _FeedCardState extends State<_FeedCard> {
                 ],
               ),
             ),
+            // Photo (if exists)
+            if (imageUrl != null && imageUrl.isNotEmpty)
+              CachedNetworkImage(
+                imageUrl: imageUrl,
+                width: double.infinity,
+                height: 200,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => Container(
+                  height: 200, color: const Color(0xFFF7F9F8),
+                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4ECDC4))),
+                ),
+                errorWidget: (_, __, ___) => const SizedBox.shrink(),
+              ),
             // Content
             Container(
               width: double.infinity,
