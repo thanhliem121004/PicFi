@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/expense_categories.dart';
@@ -24,6 +28,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
   DateTime _selectedDate = DateTime.now();
   bool _shareToFeed = true;
   String _selectedEmoji = '💸';
+  File? _pickedImage;
+  bool _isUploading = false;
   late AnimationController _entryController;
   late Animation<double> _slideUp;
   late Animation<double> _fadeIn;
@@ -49,6 +55,99 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
     _noteController.dispose();
     _entryController.dispose();
     super.dispose();
+  }
+
+  void _showImagePicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(
+              color: AppColors.outlineVariant.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(2),
+            )),
+            const SizedBox(height: 20),
+            const Text('Chọn ảnh', style: TextStyle(
+              fontFamily: 'Manrope', fontSize: 22, fontWeight: FontWeight.w800,
+            )),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      final picked = await ImagePicker().pickImage(
+                        source: ImageSource.camera,
+                        imageQuality: 70,
+                        maxWidth: 1200,
+                      );
+                      if (picked != null) setState(() => _pickedImage = File(picked.path));
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4ECDC4).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFF4ECDC4).withValues(alpha: 0.15)),
+                      ),
+                      child: const Column(
+                        children: [
+                          Icon(Icons.camera_alt_rounded, size: 32, color: Color(0xFF4ECDC4)),
+                          SizedBox(height: 8),
+                          Text('Máy ảnh', style: TextStyle(
+                            fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600,
+                          )),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      final picked = await ImagePicker().pickImage(
+                        source: ImageSource.gallery,
+                        imageQuality: 70,
+                        maxWidth: 1200,
+                      );
+                      if (picked != null) setState(() => _pickedImage = File(picked.path));
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF9B59B6).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFF9B59B6).withValues(alpha: 0.15)),
+                      ),
+                      child: const Column(
+                        children: [
+                          Icon(Icons.photo_library_rounded, size: 32, color: Color(0xFF9B59B6)),
+                          SizedBox(height: 8),
+                          Text('Thư viện', style: TextStyle(
+                            fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600,
+                          )),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -459,6 +558,86 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                     ),
                     const SizedBox(height: 20),
 
+                    // ═══ Photo Picker ═══
+                    Opacity(
+                      opacity: _fadeIn.value,
+                      child: Transform.translate(
+                        offset: Offset(0, _slideUp.value * 1.3),
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 20),
+                          child: _pickedImage != null
+                              ? Stack(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(22),
+                                      child: Image.file(
+                                        _pickedImage!,
+                                        width: double.infinity,
+                                        height: 200,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 8, right: 8,
+                                      child: GestureDetector(
+                                        onTap: () => setState(() => _pickedImage = null),
+                                        child: Container(
+                                          width: 32, height: 32,
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withValues(alpha: 0.5),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : GestureDetector(
+                                  onTap: _showImagePicker,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceContainerLowest,
+                                      borderRadius: BorderRadius.circular(22),
+                                      border: Border.all(
+                                        color: const Color(0xFF4ECDC4).withValues(alpha: 0.2),
+                                        style: BorderStyle.solid,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          width: 44, height: 44,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: const Color(0xFF4ECDC4).withValues(alpha: 0.1),
+                                          ),
+                                          child: const Icon(Icons.camera_alt_rounded, color: Color(0xFF4ECDC4), size: 22),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text('Thêm ảnh chi tiêu', style: TextStyle(
+                                              fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w600,
+                                            )),
+                                            Text('Chụp hoá đơn hoặc món đồ', style: TextStyle(
+                                              fontFamily: 'Inter', fontSize: 12,
+                                              color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
+                                            )),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
                     // ═══ Share to Feed Toggle ═══
                     Opacity(
                       opacity: _fadeIn.value,
@@ -542,13 +721,33 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                     color: AppColors.surface.withValues(alpha: 0.85),
                     border: Border(top: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.2))),
                   ),
-                  child: _SaveButton(
-                    onTap: () {
+                  child: _isUploading
+                      ? const Center(child: CircularProgressIndicator(color: Color(0xFF4ECDC4)))
+                      : _SaveButton(
+                    onTap: () async {
                       final amount = double.tryParse(
                         _amountController.text.replaceAll('.', '').replaceAll(',', ''),
                       );
                       if (amount == null || amount <= 0) return;
                       HapticFeedback.heavyImpact();
+
+                      String? imageUrl;
+                      // Upload image if picked
+                      if (_pickedImage != null) {
+                        setState(() => _isUploading = true);
+                        try {
+                          final uid = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
+                          final ref = FirebaseStorage.instance
+                              .ref('expenses/$uid/${DateTime.now().millisecondsSinceEpoch}.jpg');
+                          await ref.putFile(_pickedImage!);
+                          imageUrl = await ref.getDownloadURL();
+                        } catch (e) {
+                          // Continue without image if upload fails
+                        }
+                        if (mounted) setState(() => _isUploading = false);
+                      }
+
+                      if (!mounted) return;
                       context.read<ExpenseCubit>().addExpense(
                         ExpenseEntity(
                           id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -556,6 +755,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                           category: _selectedCategory.name,
                           note: _noteController.text.isNotEmpty ? _noteController.text : null,
                           date: _selectedDate,
+                          imageUrl: imageUrl,
                           createdAt: DateTime.now(), updatedAt: DateTime.now(),
                         ),
                       );
@@ -566,6 +766,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                           category: _selectedCategory.name,
                           note: _noteController.text.isNotEmpty ? _noteController.text : null,
                           emoji: _selectedEmoji,
+                          imageUrl: imageUrl,
                         );
                       }
                       context.pop();
