@@ -146,6 +146,7 @@ class ExpenseCubit extends Cubit<ExpenseState> {
     required String category,
     String? note,
     String? emoji,
+    String? imageUrl,
   }) async {
     if (_uid == null) return;
     try {
@@ -161,6 +162,7 @@ class ExpenseCubit extends Cubit<ExpenseState> {
         'category': category,
         'note': note,
         'emoji': emoji ?? '💸',
+        'imageUrl': imageUrl,
         'likes': 0,
         'sharedAt': FieldValue.serverTimestamp(),
       });
