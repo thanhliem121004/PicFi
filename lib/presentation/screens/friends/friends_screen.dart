@@ -71,20 +71,44 @@ class _FriendsScreenState extends State<FriendsScreen>
           child: BlocListener<FriendsCubit, FriendsState>(
             listener: (context, state) {
               if (state.error != null) {
+                ScaffoldMessenger.of(context).clearSnackBars();
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(state.error!, style: const TextStyle(fontFamily: 'Inter')),
+                  content: Row(children: [
+                    Container(
+                      width: 32, height: 32,
+                      decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.2)),
+                      child: const Icon(Icons.error_outline_rounded, color: Colors.white, size: 18),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(state.error!, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white))),
+                  ]),
                   backgroundColor: const Color(0xFFFF6B6B),
                   behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 8,
                 ));
                 context.read<FriendsCubit>().clearMessages();
               }
               if (state.successMessage != null) {
+                ScaffoldMessenger.of(context).clearSnackBars();
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(state.successMessage!, style: const TextStyle(fontFamily: 'Inter')),
-                  backgroundColor: const Color(0xFF4ECDC4),
+                  content: Row(children: [
+                    Container(
+                      width: 32, height: 32,
+                      decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.2)),
+                      child: const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 18),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(state.successMessage!, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white))),
+                  ]),
+                  backgroundColor: const Color(0xFF006A65),
                   behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 8,
                 ));
                 context.read<FriendsCubit>().clearMessages();
               }

@@ -1,7 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../blocs/theme/theme_cubit.dart';
@@ -50,6 +54,123 @@ class _ProfileScreenState extends State<ProfileScreen>
   void dispose() {
     _animController.dispose();
     super.dispose();
+  }
+
+  Future<void> _changeAvatar() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(
+              color: AppColors.outlineVariant.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(2),
+            )),
+            const SizedBox(height: 20),
+            const Text('Đổi ảnh đại diện', style: TextStyle(
+              fontFamily: 'Manrope', fontSize: 22, fontWeight: FontWeight.w800,
+            )),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(child: GestureDetector(
+                  onTap: () => Navigator.pop(ctx, ImageSource.camera),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4ECDC4).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Column(children: [
+                      Icon(Icons.camera_alt_rounded, size: 32, color: Color(0xFF4ECDC4)),
+                      SizedBox(height: 8),
+                      Text('Máy ảnh', style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
+                )),
+                const SizedBox(width: 16),
+                Expanded(child: GestureDetector(
+                  onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF9B59B6).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Column(children: [
+                      Icon(Icons.photo_library_rounded, size: 32, color: Color(0xFF9B59B6)),
+                      SizedBox(height: 8),
+                      Text('Thư viện', style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
+                )),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return;
+    final picked = await ImagePicker().pickImage(
+      source: source, imageQuality: 70, maxWidth: 800,
+    );
+    if (picked == null || !mounted) return;
+
+    HapticFeedback.lightImpact();
+    _showPremiumToast('Đang tải ảnh lên... ⬆️');
+
+    try {
+      final uid = context.read<AuthCubit>().state.userId;
+      final ref = FirebaseStorage.instance.ref('avatars/$uid.jpg');
+      await ref.putFile(File(picked.path));
+      final url = await ref.getDownloadURL();
+      if (!mounted) return;
+      context.read<AuthCubit>().updateProfile(photoUrl: url);
+      _showPremiumToast('Đã cập nhật ảnh đại diện! ✨');
+    } catch (e) {
+      if (mounted) _showPremiumToast('Lỗi tải ảnh: $e', isError: true);
+    }
+  }
+
+  void _showPremiumToast(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Row(
+        children: [
+          Container(
+            width: 32, height: 32,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.2),
+            ),
+            child: Icon(
+              isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
+              color: Colors.white, size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(msg, style: const TextStyle(
+            fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w500,
+            color: Colors.white,
+          ))),
+        ],
+      ),
+      backgroundColor: isError ? const Color(0xFFFF6B6B) : const Color(0xFF006A65),
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 8,
+      duration: const Duration(seconds: 2),
+    ));
   }
 
   @override
@@ -137,16 +258,45 @@ class _ProfileScreenState extends State<ProfileScreen>
                                       shape: BoxShape.circle,
                                       border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
                                     ),
-                                    child: Container(
-                                      width: 72, height: 72,
-                                      decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(36),
-                                        child: Image.asset(
-                                          'assets/images/auth_illustration.png',
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) => const Icon(Icons.person_rounded, size: 36, color: Color(0xFFFF6B6B)),
-                                        ),
+                                    child: GestureDetector(
+                                      onTap: _changeAvatar,
+                                      child: Stack(
+                                        children: [
+                                          Container(
+                                            width: 72, height: 72,
+                                            decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
+                                            child: ClipRRect(
+                                              borderRadius: BorderRadius.circular(36),
+                                              child: BlocBuilder<AuthCubit, AuthState>(
+                                                builder: (context, authState) {
+                                                  if (authState.photoUrl != null && authState.photoUrl!.isNotEmpty) {
+                                                    return CachedNetworkImage(
+                                                      imageUrl: authState.photoUrl!,
+                                                      width: 72, height: 72, fit: BoxFit.cover,
+                                                      placeholder: (_, __) => const Center(
+                                                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4ECDC4)),
+                                                      ),
+                                                      errorWidget: (_, __, ___) => _defaultAvatar(authState.displayName),
+                                                    );
+                                                  }
+                                                  return _defaultAvatar(authState.displayName);
+                                                },
+                                              ),
+                                            ),
+                                          ),
+                                          Positioned(
+                                            bottom: 0, right: 0,
+                                            child: Container(
+                                              width: 26, height: 26,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                gradient: const LinearGradient(colors: [Color(0xFF4ECDC4), Color(0xFF006A65)]),
+                                                border: Border.all(color: Colors.white, width: 2),
+                                              ),
+                                              child: const Icon(Icons.camera_alt_rounded, size: 12, color: Colors.white),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
@@ -181,13 +331,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                   onTap: () {
                                                     Clipboard.setData(ClipboardData(text: authState.picfiId ?? ''));
                                                     HapticFeedback.mediumImpact();
-                                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                                      content: const Text('Đã copy PicFi ID! 📋', style: TextStyle(fontFamily: 'Inter')),
-                                                      backgroundColor: const Color(0xFF4ECDC4),
-                                                      behavior: SnackBarBehavior.floating,
-                                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                                      duration: const Duration(seconds: 2),
-                                                    ));
+                                                    _showPremiumToast('Đã copy PicFi ID! 📋');
                                                   },
                                                   child: Container(
                                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -200,7 +344,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                       children: [
                                                         const Icon(Icons.fingerprint_rounded, size: 14, color: Colors.white),
                                                         const SizedBox(width: 4),
-                                                        Text(authState.picfiId ?? 'PF-...', style: const TextStyle(
+                                                        Text(
+                                                          authState.picfiId != null && authState.picfiId!.isNotEmpty
+                                                              ? authState.picfiId!
+                                                              : 'Chưa có',
+                                                          style: const TextStyle(
                                                           fontFamily: 'Manrope', fontSize: 12,
                                                           fontWeight: FontWeight.w700, color: Colors.white,
                                                           letterSpacing: 0.5,
@@ -327,12 +475,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                               title: AppStrings.notifications,
                               onTap: () {
                                 HapticFeedback.lightImpact();
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                  content: const Text('Thông báo đã được bật ✅', style: TextStyle(fontFamily: 'Inter')),
-                                  backgroundColor: const Color(0xFF45B7D1),
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                ));
+                                _showPremiumToast('Thông báo đã được bật ✅');
                               },
                             ),
                             _VibrantTile(
@@ -439,6 +582,25 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
+  Widget _defaultAvatar(String? name) {
+    final initial = (name != null && name.isNotEmpty) ? name[0].toUpperCase() : '?';
+    return Container(
+      width: 72, height: 72,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: [Color(0xFFFF6B6B), Color(0xFFF0B27A)],
+        ),
+      ),
+      child: Center(
+        child: Text(initial, style: const TextStyle(
+          fontFamily: 'Manrope', fontSize: 32, fontWeight: FontWeight.w800,
+          color: Colors.white,
+        )),
+      ),
+    );
+  }
+
   // ═══ Edit Name Dialog ═══
   void _showEditNameDialog(BuildContext context) {
     final authState = context.read<AuthCubit>().state;
@@ -509,12 +671,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     context.read<AuthCubit>().updateProfile(displayName: name);
                     Navigator.pop(ctx);
                     HapticFeedback.mediumImpact();
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: const Text('Đã cập nhật tên! ✨', style: TextStyle(fontFamily: 'Inter')),
-                      backgroundColor: const Color(0xFF4ECDC4),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ));
+                    _showPremiumToast('Đã cập nhật tên! ✨');
                   }
                 },
                 child: Container(
@@ -613,12 +770,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   if (budget != null && budget > 0) {
                     Navigator.pop(ctx);
                     HapticFeedback.mediumImpact();
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text('Đã đặt ngân sách ${CurrencyFormatter.formatShort(budget)} 💰', style: const TextStyle(fontFamily: 'Inter')),
-                      backgroundColor: const Color(0xFF4ECDC4),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ));
+                    _showPremiumToast('Đã đặt ngân sách ${CurrencyFormatter.formatShort(budget)} 💰');
                   }
                 },
                 child: Container(
@@ -751,12 +903,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 onTap: () {
                   Navigator.pop(ctx);
                   HapticFeedback.mediumImpact();
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: const Text('Báo cáo đã được tạo! 📊', style: TextStyle(fontFamily: 'Inter')),
-                    backgroundColor: const Color(0xFFF0B27A),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ));
+                  _showPremiumToast('Báo cáo đã được tạo! 📊');
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 16),
