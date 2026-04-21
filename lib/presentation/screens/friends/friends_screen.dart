@@ -178,7 +178,10 @@ class _FriendsScreenState extends State<FriendsScreen>
                             opacity: _fadeIn.value,
                             child: BlocBuilder<AuthCubit, AuthState>(
                               builder: (context, authState) {
-                                final myId = authState.picfiId ?? 'Đang tải...';
+                                final myId = (authState.picfiId != null && authState.picfiId!.isNotEmpty)
+                                    ? authState.picfiId!
+                                    : null;
+                                final displayId = myId ?? 'Chưa tạo ID';
                                 return Container(
                                   margin: const EdgeInsets.symmetric(horizontal: 20),
                                   padding: const EdgeInsets.all(16),
@@ -217,15 +220,19 @@ class _FriendsScreenState extends State<FriendsScreen>
                                               color: Colors.white.withValues(alpha: 0.7),
                                             )),
                                             const SizedBox(height: 2),
-                                            Text(myId, style: const TextStyle(
-                                              fontFamily: 'Manrope', fontSize: 22, fontWeight: FontWeight.w800,
-                                              color: Colors.white, letterSpacing: 1.5,
+                                            Text(displayId, style: TextStyle(
+                                              fontFamily: 'Manrope', fontSize: myId != null ? 22 : 16,
+                                              fontWeight: FontWeight.w800,
+                                              color: Colors.white,
+                                              letterSpacing: myId != null ? 1.5 : 0,
+                                              fontStyle: myId == null ? FontStyle.italic : FontStyle.normal,
                                             )),
                                           ],
                                         ),
                                       ),
                                       GestureDetector(
                                         onTap: () {
+                                          if (myId == null) return;
                                           Clipboard.setData(ClipboardData(text: myId));
                                           HapticFeedback.mediumImpact();
                                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(

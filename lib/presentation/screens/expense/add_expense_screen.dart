@@ -6,9 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/expense_categories.dart';
 import '../../../domain/entities/expense_entity.dart';
 import '../../blocs/expense/expense_cubit.dart';
@@ -150,682 +148,622 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
     );
   }
 
+  void _showPremiumToast(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Row(children: [
+        Container(
+          width: 32, height: 32,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.2)),
+          child: Icon(isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded, color: Colors.white, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Text(msg, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white))),
+      ]),
+      backgroundColor: isError ? const Color(0xFFFF6B6B) : const Color(0xFF006A65),
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 8, duration: const Duration(seconds: 2),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      // ═══ Sticky Header ═══
-      appBar: AppBar(
-        backgroundColor: AppColors.surface.withValues(alpha: 0.9),
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: GestureDetector(
-          onTap: () => context.pop(),
-          child: Center(
-            child: Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.surfaceContainerLow,
-              ),
-              child: const Icon(Icons.close_rounded, color: AppColors.onSurface, size: 22),
-            ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFF0FBF9), Color(0xFFFFF8F0), Colors.white],
+            stops: [0.0, 0.4, 1.0],
           ),
         ),
-        centerTitle: true,
-        title: const Text(
-          AppStrings.addExpense,
-          style: TextStyle(
-            fontFamily: 'Manrope', fontSize: 20, fontWeight: FontWeight.w600,
-            color: AppColors.onSurface,
-          ),
-        ),
-      ),
-      body: AnimatedBuilder(
-        animation: _entryController,
-        builder: (context, _) {
-          return Stack(
-            children: [
-              SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.only(bottom: 120),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 8),
-                    // ═══ Amount Input ═══
-                    Opacity(
-                      opacity: _fadeIn.value,
-                      child: Transform.translate(
-                        offset: Offset(0, _slideUp.value * 0.5),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
+        child: SafeArea(
+          child: AnimatedBuilder(
+            animation: _entryController,
+            builder: (context, _) {
+              return Stack(
+                children: [
+                  SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 100),
+                    child: Column(
+                      children: [
+                        // ═══ Header ═══
+                        Opacity(
+                          opacity: _fadeIn.value,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
+                            child: Row(
                               children: [
+                                IconButton(
+                                  onPressed: () => context.pop(),
+                                  icon: Container(
+                                    width: 40, height: 40,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.white,
+                                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
+                                    ),
+                                    child: const Icon(Icons.close_rounded, size: 20),
+                                  ),
+                                ),
+                                const Spacer(),
                                 ShaderMask(
-                                  shaderCallback: (bounds) => AppColors.primaryGradient.createShader(bounds),
-                                  child: const Text('₫', style: TextStyle(
-                                    fontFamily: 'Manrope', fontSize: 28, fontWeight: FontWeight.w800,
+                                  shaderCallback: (bounds) => const LinearGradient(
+                                    colors: [Color(0xFF006A65), Color(0xFF4ECDC4)],
+                                  ).createShader(bounds),
+                                  child: const Text('Thêm Chi Tiêu', style: TextStyle(
+                                    fontFamily: 'Manrope', fontSize: 20, fontWeight: FontWeight.w800,
                                     color: Colors.white,
                                   )),
                                 ),
-                                const SizedBox(width: 8),
-                                SizedBox(
-                                  width: 200,
-                                  child: TextField(
-                                    controller: _amountController,
-                                    keyboardType: TextInputType.number,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontFamily: 'Manrope', fontSize: 42, fontWeight: FontWeight.w800,
-                                      color: AppColors.primary, letterSpacing: -1,
-                                    ),
-                                    decoration: const InputDecoration(
-                                      border: InputBorder.none,
-                                    ),
-                                  ),
-                                ),
+                                const Spacer(),
+                                const SizedBox(width: 48),
                               ],
                             ),
-                            // Animated underline
-                            Container(
-                              width: 120, height: 2,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    AppColors.primary.withValues(alpha: 0),
-                                    AppColors.primary.withValues(alpha: 0.3),
-                                    AppColors.primary.withValues(alpha: 0),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(1),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // ═══ Photo Upload (Locket-style) ═══
-                    Opacity(
-                      opacity: _fadeIn.value,
-                      child: Transform.translate(
-                        offset: Offset(0, _slideUp.value * 0.8),
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 20),
-                          height: MediaQuery.of(context).size.width - 40,
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceContainerLowest,
-                            borderRadius: BorderRadius.circular(32),
-                            border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.03),
-                                blurRadius: 16,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
                           ),
-                          child: Stack(
-                            children: [
-                              // Inner dashed border
-                              Positioned.fill(
-                                child: Container(
-                                  margin: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(24),
-                                    border: Border.all(
-                                      color: AppColors.outlineVariant.withValues(alpha: 0.4),
-                                      width: 2,
-                                      strokeAlign: BorderSide.strokeAlignInside,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      width: 68, height: 68,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        gradient: LinearGradient(
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                          colors: [
-                                            AppColors.primaryContainer.withValues(alpha: 0.3),
-                                            AppColors.primaryContainer.withValues(alpha: 0.15),
-                                          ],
-                                        ),
-                                      ),
-                                      child: const Icon(Icons.photo_camera_rounded, size: 32, color: AppColors.primary),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    const Text(AppStrings.capturePhoto, style: TextStyle(
-                                      fontFamily: 'Manrope', fontSize: 20, fontWeight: FontWeight.w700,
-                                      color: AppColors.onSurface,
-                                    )),
-                                    const SizedBox(height: 6),
-                                    Text(AppStrings.capturePhotoHint, textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontFamily: 'Inter', fontSize: 14,
-                                        color: AppColors.onSurfaceVariant.withValues(alpha: 0.75),
-                                      ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // ═══ Photo Section (Locket-style) ═══
+                        Opacity(
+                          opacity: _fadeIn.value,
+                          child: Transform.translate(
+                            offset: Offset(0, _slideUp.value * 0.5),
+                            child: GestureDetector(
+                              onTap: _showImagePicker,
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 24),
+                                height: 280,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(28),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: _pickedImage != null
+                                          ? const Color(0xFF4ECDC4).withValues(alpha: 0.2)
+                                          : Colors.black.withValues(alpha: 0.06),
+                                      blurRadius: 25,
+                                      offset: const Offset(0, 10),
                                     ),
                                   ],
                                 ),
-                              ),
-                              // Gallery chip
-                              Positioned(
-                                bottom: 16, right: 16,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surfaceContainer,
-                                    borderRadius: BorderRadius.circular(24),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.05),
-                                        blurRadius: 8,
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.add_photo_alternate_rounded, size: 16, color: AppColors.onSurfaceVariant),
-                                      const SizedBox(width: 6),
-                                      Text(AppStrings.gallery, style: TextStyle(
-                                        fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.3, color: AppColors.onSurfaceVariant,
-                                      )),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // ═══ Category Selector ═══
-                    Opacity(
-                      opacity: _fadeIn.value,
-                      child: Transform.translate(
-                        offset: Offset(0, _slideUp.value),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.only(left: 20),
-                              child: Text(AppStrings.category, style: TextStyle(
-                                fontFamily: 'Manrope', fontSize: 20, fontWeight: FontWeight.w700,
-                              )),
-                            ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              height: 92,
-                              child: ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                physics: const BouncingScrollPhysics(),
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                itemCount: ExpenseCategory.values.length,
-                                itemBuilder: (context, index) {
-                                  final cat = ExpenseCategory.values[index];
-                                  final isSelected = _selectedCategory == cat;
-                                  return GestureDetector(
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      setState(() => _selectedCategory = cat);
-                                    },
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 250),
-                                      curve: Curves.easeOutCubic,
-                                      width: 72,
-                                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                                      child: Column(
-                                        children: [
-                                          AnimatedContainer(
-                                            duration: const Duration(milliseconds: 250),
-                                            curve: Curves.easeOutCubic,
-                                            width: 56, height: 56,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              color: isSelected ? cat.color : AppColors.surfaceContainerHigh,
-                                              border: isSelected
-                                                  ? Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2)
-                                                  : Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
-                                              boxShadow: isSelected ? [
-                                                BoxShadow(
-                                                  color: cat.color.withValues(alpha: 0.35),
-                                                  blurRadius: 12,
-                                                  offset: const Offset(0, 4),
-                                                ),
-                                              ] : null,
-                                            ),
-                                            child: Icon(
-                                              cat.icon, size: 24,
-                                              color: isSelected ? Colors.white : AppColors.onSurfaceVariant,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            cat.label,
-                                            style: TextStyle(
-                                              fontFamily: 'Inter', fontSize: 11,
-                                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
-                                              letterSpacing: 0.3,
-                                              color: isSelected ? cat.color : AppColors.onSurfaceVariant,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // ═══ Date & Note Card ═══
-                    Opacity(
-                      opacity: _fadeIn.value,
-                      child: Transform.translate(
-                        offset: Offset(0, _slideUp.value * 1.2),
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 20),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceContainerLowest,
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.2)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.02),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(4),
-                            child: Column(
-                              children: [
-                                // Date row
-                                GestureDetector(
-                                  onTap: () async {
-                                    final picked = await showDatePicker(
-                                      context: context,
-                                      initialDate: _selectedDate,
-                                      firstDate: DateTime(2020),
-                                      lastDate: DateTime.now(),
-                                    );
-                                    if (picked != null) setState(() => _selectedDate = picked);
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 42, height: 42,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: AppColors.primaryContainer.withValues(alpha: 0.2),
-                                          ),
-                                          child: const Icon(Icons.calendar_today_rounded, size: 20, color: AppColors.primary),
-                                        ),
-                                        const SizedBox(width: 14),
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(28),
+                                  child: _pickedImage != null
+                                      ? Stack(
+                                          fit: StackFit.expand,
                                           children: [
-                                            Text(AppStrings.transactionDate, style: TextStyle(
-                                              fontFamily: 'Inter', fontSize: 13,
-                                              color: AppColors.onSurfaceVariant,
-                                            )),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              'Hôm nay, ${_selectedDate.day} Thg ${_selectedDate.month}',
-                                              style: const TextStyle(
-                                                fontFamily: 'Inter', fontSize: 16,
-                                                fontWeight: FontWeight.w600, color: AppColors.onSurface,
+                                            Image.file(_pickedImage!, fit: BoxFit.cover),
+                                            // Gradient overlay bottom
+                                            Positioned(
+                                              bottom: 0, left: 0, right: 0,
+                                              child: Container(
+                                                height: 80,
+                                                decoration: BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    begin: Alignment.topCenter,
+                                                    end: Alignment.bottomCenter,
+                                                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.5)],
+                                                  ),
+                                                ),
+                                                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                                                child: Row(
+                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                                  children: [
+                                                    const Text('📸 Ảnh đã chọn', style: TextStyle(
+                                                      fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600,
+                                                      color: Colors.white,
+                                                    )),
+                                                    GestureDetector(
+                                                      onTap: () => setState(() => _pickedImage = null),
+                                                      child: Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.white.withValues(alpha: 0.2),
+                                                          borderRadius: BorderRadius.circular(12),
+                                                        ),
+                                                        child: const Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            Icon(Icons.refresh_rounded, size: 16, color: Colors.white),
+                                                            SizedBox(width: 4),
+                                                            Text('Đổi', style: TextStyle(
+                                                              fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600,
+                                                              color: Colors.white,
+                                                            )),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
                                             ),
                                           ],
+                                        )
+                                      : Container(
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                              colors: [
+                                                const Color(0xFF4ECDC4).withValues(alpha: 0.06),
+                                                const Color(0xFF9B59B6).withValues(alpha: 0.04),
+                                              ],
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(0xFF4ECDC4).withValues(alpha: 0.15),
+                                              width: 2,
+                                            ),
+                                            borderRadius: BorderRadius.circular(28),
+                                          ),
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Container(
+                                                width: 72, height: 72,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  gradient: LinearGradient(
+                                                    colors: [
+                                                      const Color(0xFF4ECDC4).withValues(alpha: 0.15),
+                                                      const Color(0xFF006A65).withValues(alpha: 0.08),
+                                                    ],
+                                                  ),
+                                                ),
+                                                child: const Icon(Icons.camera_alt_rounded, size: 32, color: Color(0xFF4ECDC4)),
+                                              ),
+                                              const SizedBox(height: 16),
+                                              const Text('Chụp ảnh khoảnh khắc', style: TextStyle(
+                                                fontFamily: 'Manrope', fontSize: 18, fontWeight: FontWeight.w800,
+                                                color: Color(0xFF2D3436),
+                                              )),
+                                              const SizedBox(height: 6),
+                                              Text('Lưu giữ biên lai hoặc hình ảnh món đồ bạn vừa mua.', textAlign: TextAlign.center, style: TextStyle(
+                                                fontFamily: 'Inter', fontSize: 13,
+                                                color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
+                                                height: 1.4,
+                                              )),
+                                              const SizedBox(height: 16),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                  borderRadius: BorderRadius.circular(14),
+                                                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(Icons.photo_library_outlined, size: 16, color: AppColors.onSurfaceVariant.withValues(alpha: 0.6)),
+                                                    const SizedBox(width: 6),
+                                                    Text('Thư viện', style: TextStyle(
+                                                      fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600,
+                                                      color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
+                                                    )),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                        const Spacer(),
-                                        const Icon(Icons.chevron_right_rounded, color: AppColors.outlineVariant),
-                                      ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // ═══ Amount Input ═══
+                        Opacity(
+                          opacity: _fadeIn.value,
+                          child: Transform.translate(
+                            offset: Offset(0, _slideUp.value * 0.7),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 24),
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 15, offset: const Offset(0, 4))],
+                              ),
+                              child: Row(
+                                children: [
+                                  ShaderMask(
+                                    shaderCallback: (bounds) => const LinearGradient(
+                                      colors: [Color(0xFF4ECDC4), Color(0xFF006A65)],
+                                    ).createShader(bounds),
+                                    child: const Text('đ', style: TextStyle(
+                                      fontFamily: 'Manrope', fontSize: 28, fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    )),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _amountController,
+                                      keyboardType: TextInputType.number,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontFamily: 'Manrope', fontSize: 40, fontWeight: FontWeight.w800,
+                                        color: Color(0xFF2D3436), letterSpacing: -1,
+                                      ),
+                                      decoration: const InputDecoration(border: InputBorder.none),
+                                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                      onTap: () {
+                                        if (_amountController.text == '0') _amountController.clear();
+                                      },
                                     ),
                                   ),
-                                ),
-                                Divider(height: 1, indent: 20, endIndent: 20,
-                                  color: AppColors.outlineVariant.withValues(alpha: 0.2)),
-                                // Note row
+                                  const SizedBox(width: 12),
+                                  Text('VNĐ', style: TextStyle(
+                                    fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w700,
+                                    color: AppColors.onSurfaceVariant.withValues(alpha: 0.4),
+                                  )),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // ═══ Categories ═══
+                        Opacity(
+                          opacity: _fadeIn.value,
+                          child: Transform.translate(
+                            offset: Offset(0, _slideUp.value * 0.9),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                                 Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Container(
-                                        width: 42, height: 42,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: AppColors.tertiaryContainer.withValues(alpha: 0.2),
-                                        ),
-                                        child: const Icon(Icons.edit_note_rounded, size: 20, color: AppColors.tertiary),
-                                      ),
-                                      const SizedBox(width: 14),
-                                      Expanded(
-                                        child: TextField(
-                                          controller: _noteController,
-                                          maxLines: 3,
-                                          decoration: InputDecoration(
-                                            hintText: AppStrings.addNote,
-                                            border: InputBorder.none,
-                                            hintStyle: TextStyle(
-                                              fontFamily: 'Inter', fontSize: 15,
-                                              color: AppColors.outline.withValues(alpha: 0.5),
+                                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                                  child: Text('Danh mục', style: TextStyle(
+                                    fontFamily: 'Manrope', fontSize: 16, fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF2D3436).withValues(alpha: 0.8),
+                                  )),
+                                ),
+                                const SizedBox(height: 10),
+                                SizedBox(
+                                  height: 90,
+                                  child: ListView.builder(
+                                    scrollDirection: Axis.horizontal,
+                                    physics: const BouncingScrollPhysics(),
+                                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                                    itemCount: ExpenseCategory.values.length,
+                                    itemBuilder: (context, index) {
+                                      final cat = ExpenseCategory.values[index];
+                                      final isSelected = cat == _selectedCategory;
+                                      return GestureDetector(
+                                        onTap: () {
+                                          HapticFeedback.selectionClick();
+                                          setState(() => _selectedCategory = cat);
+                                        },
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 200),
+                                          width: 76,
+                                          margin: const EdgeInsets.only(right: 10),
+                                          decoration: BoxDecoration(
+                                            color: isSelected ? cat.color.withValues(alpha: 0.12) : Colors.white,
+                                            borderRadius: BorderRadius.circular(20),
+                                            border: Border.all(
+                                              color: isSelected ? cat.color : Colors.transparent,
+                                              width: 2,
                                             ),
-                                            contentPadding: const EdgeInsets.only(top: 10),
+                                            boxShadow: isSelected ? [
+                                              BoxShadow(color: cat.color.withValues(alpha: 0.15), blurRadius: 10, offset: const Offset(0, 4)),
+                                            ] : [
+                                              BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8),
+                                            ],
                                           ),
-                                          style: const TextStyle(
-                                            fontFamily: 'Inter', fontSize: 15,
-                                            color: AppColors.onSurface, height: 1.5,
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(cat.icon, size: 26, color: isSelected ? cat.color : AppColors.onSurfaceVariant.withValues(alpha: 0.5)),
+                                              const SizedBox(height: 6),
+                                              Text(cat.label, style: TextStyle(
+                                                fontFamily: 'Inter', fontSize: 11,
+                                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                                color: isSelected ? cat.color : AppColors.onSurfaceVariant.withValues(alpha: 0.6),
+                                              ), overflow: TextOverflow.ellipsis),
+                                            ],
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                      );
+                                    },
                                   ),
                                 ),
                               ],
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+                        const SizedBox(height: 16),
 
-                    // ═══ Photo Picker ═══
-                    Opacity(
-                      opacity: _fadeIn.value,
-                      child: Transform.translate(
-                        offset: Offset(0, _slideUp.value * 1.3),
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 20),
-                          child: _pickedImage != null
-                              ? Stack(
-                                  children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(22),
-                                      child: Image.file(
-                                        _pickedImage!,
-                                        width: double.infinity,
-                                        height: 200,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                    Positioned(
-                                      top: 8, right: 8,
-                                      child: GestureDetector(
-                                        onTap: () => setState(() => _pickedImage = null),
-                                        child: Container(
-                                          width: 32, height: 32,
-                                          decoration: BoxDecoration(
-                                            color: Colors.black.withValues(alpha: 0.5),
-                                            shape: BoxShape.circle,
+                        // ═══ Note + Date Row ═══
+                        Opacity(
+                          opacity: _fadeIn.value,
+                          child: Transform.translate(
+                            offset: Offset(0, _slideUp.value * 1.1),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 24),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(22),
+                                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 12)],
+                              ),
+                              child: Column(
+                                children: [
+                                  // Note
+                                  Row(
+                                    children: [
+                                      Icon(Icons.edit_note_rounded, size: 22, color: AppColors.onSurfaceVariant.withValues(alpha: 0.4)),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: TextField(
+                                          controller: _noteController,
+                                          decoration: InputDecoration(
+                                            hintText: 'Ghi chú (tuỳ chọn)',
+                                            border: InputBorder.none,
+                                            hintStyle: TextStyle(
+                                              fontFamily: 'Inter', fontSize: 15,
+                                              color: AppColors.outline.withValues(alpha: 0.4),
+                                            ),
                                           ),
-                                          child: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
+                                          style: const TextStyle(fontFamily: 'Inter', fontSize: 15, height: 1.4),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                )
-                              : GestureDetector(
-                                  onTap: _showImagePicker,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(20),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.surfaceContainerLowest,
-                                      borderRadius: BorderRadius.circular(22),
-                                      border: Border.all(
-                                        color: const Color(0xFF4ECDC4).withValues(alpha: 0.2),
-                                        style: BorderStyle.solid,
-                                      ),
-                                    ),
+                                    ],
+                                  ),
+                                  Divider(color: AppColors.outlineVariant.withValues(alpha: 0.15), height: 1),
+                                  const SizedBox(height: 8),
+                                  // Date
+                                  GestureDetector(
+                                    onTap: () async {
+                                      HapticFeedback.selectionClick();
+                                      final picked = await showDatePicker(
+                                        context: context,
+                                        initialDate: _selectedDate,
+                                        firstDate: DateTime(2020), lastDate: DateTime.now(),
+                                        builder: (context, child) => Theme(
+                                          data: ThemeData.light().copyWith(
+                                            colorScheme: const ColorScheme.light(primary: Color(0xFF4ECDC4)),
+                                          ),
+                                          child: child!,
+                                        ),
+                                      );
+                                      if (picked != null) setState(() => _selectedDate = picked);
+                                    },
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        Container(
-                                          width: 44, height: 44,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: const Color(0xFF4ECDC4).withValues(alpha: 0.1),
+                                        Icon(Icons.calendar_today_rounded, size: 20, color: const Color(0xFF4ECDC4).withValues(alpha: 0.7)),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          _selectedDate.day == DateTime.now().day &&
+                                              _selectedDate.month == DateTime.now().month &&
+                                              _selectedDate.year == DateTime.now().year
+                                              ? 'Hôm nay, ${_selectedDate.day} Thg ${_selectedDate.month}'
+                                              : '${_selectedDate.day} Thg ${_selectedDate.month}, ${_selectedDate.year}',
+                                          style: TextStyle(
+                                            fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w500,
+                                            color: AppColors.onSurfaceVariant.withValues(alpha: 0.7),
                                           ),
-                                          child: const Icon(Icons.camera_alt_rounded, color: Color(0xFF4ECDC4), size: 22),
                                         ),
-                                        const SizedBox(width: 12),
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            const Text('Thêm ảnh chi tiêu', style: TextStyle(
-                                              fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w600,
-                                            )),
-                                            Text('Chụp hoá đơn hoặc món đồ', style: TextStyle(
-                                              fontFamily: 'Inter', fontSize: 12,
-                                              color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
-                                            )),
-                                          ],
-                                        ),
+                                        const Spacer(),
+                                        Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.onSurfaceVariant.withValues(alpha: 0.3)),
                                       ],
                                     ),
                                   ),
-                                ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // ═══ Share to Feed Toggle ═══
-                    Opacity(
-                      opacity: _fadeIn.value,
-                      child: Transform.translate(
-                        offset: Offset(0, _slideUp.value * 1.4),
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 20),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            gradient: _shareToFeed
-                                ? const LinearGradient(
-                                    colors: [Color(0xFFFFF0F0), Color(0xFFFFF8F0)],
-                                  )
-                                : null,
-                            color: _shareToFeed ? null : AppColors.surfaceContainerLowest,
-                            borderRadius: BorderRadius.circular(22),
-                            border: Border.all(
-                              color: _shareToFeed
-                                  ? const Color(0xFFFF6B6B).withValues(alpha: 0.2)
-                                  : AppColors.outlineVariant.withValues(alpha: 0.2),
+                                ],
+                              ),
                             ),
                           ),
-                          child: Row(
-                            children: [
-                              GestureDetector(
-                                onTap: () {
-                                  HapticFeedback.selectionClick();
-                                  final emojis = ['💸', '😋', '🍕', '☕', '🛒', '🎉', '🚗', '🏠', '🎮', '📚'];
-                                  final idx = emojis.indexOf(_selectedEmoji);
-                                  setState(() => _selectedEmoji = emojis[(idx + 1) % emojis.length]);
-                                },
-                                child: Container(
-                                  width: 44, height: 44,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: const Color(0xFFFF6B6B).withValues(alpha: 0.1),
-                                  ),
-                                  child: Center(child: Text(_selectedEmoji, style: const TextStyle(fontSize: 22))),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // ═══ Share to Feed Toggle ═══
+                        Opacity(
+                          opacity: _fadeIn.value,
+                          child: Transform.translate(
+                            offset: Offset(0, _slideUp.value * 1.3),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 24),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              decoration: BoxDecoration(
+                                gradient: _shareToFeed
+                                    ? const LinearGradient(colors: [Color(0xFFFFF5F5), Color(0xFFFFF8F0)])
+                                    : null,
+                                color: _shareToFeed ? null : Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: _shareToFeed
+                                      ? const Color(0xFFFF6B6B).withValues(alpha: 0.2)
+                                      : AppColors.outlineVariant.withValues(alpha: 0.15),
                                 ),
+                                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8)],
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                              child: Row(
+                                children: [
+                                  GestureDetector(
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      final emojis = ['💸', '😋', '🍕', '☕', '🛒', '🎉', '🚗', '🏠', '🎮', '📚'];
+                                      final idx = emojis.indexOf(_selectedEmoji);
+                                      setState(() => _selectedEmoji = emojis[(idx + 1) % emojis.length]);
+                                    },
+                                    child: Container(
+                                      width: 40, height: 40,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: const Color(0xFFFF6B6B).withValues(alpha: 0.1),
+                                      ),
+                                      child: Center(child: Text(_selectedEmoji, style: const TextStyle(fontSize: 20))),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Chia sẻ bảng tin', style: TextStyle(
+                                          fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600,
+                                        )),
+                                        Text('Bạn bè sẽ thấy chi tiêu này', style: TextStyle(
+                                          fontFamily: 'Inter', fontSize: 11,
+                                          color: AppColors.onSurfaceVariant.withValues(alpha: 0.5),
+                                        )),
+                                      ],
+                                    ),
+                                  ),
+                                  Switch(
+                                    value: _shareToFeed,
+                                    activeColor: const Color(0xFFFF6B6B),
+                                    onChanged: (v) {
+                                      HapticFeedback.selectionClick();
+                                      setState(() => _shareToFeed = v);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 100),
+                      ],
+                    ),
+                  ),
+
+                  // ═══ Sticky Bottom Save Button ═══
+                  Positioned(
+                    left: 0, right: 0, bottom: 0,
+                    child: Container(
+                      padding: EdgeInsets.fromLTRB(24, 12, 24, MediaQuery.of(context).padding.bottom + 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.95),
+                        border: Border(top: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.1))),
+                      ),
+                      child: _isUploading
+                          ? Container(
+                              height: 56,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(colors: [Color(0xFF006A65), Color(0xFF4ECDC4)]),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Center(child: SizedBox(
+                                width: 24, height: 24,
+                                child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                              )),
+                            )
+                          : GestureDetector(
+                              onTap: () async {
+                                final amount = double.tryParse(
+                                  _amountController.text.replaceAll('.', '').replaceAll(',', ''),
+                                );
+                                if (amount == null || amount <= 0) {
+                                  _showPremiumToast('Nhập số tiền hợp lệ nhé!', isError: true);
+                                  return;
+                                }
+                                HapticFeedback.heavyImpact();
+
+                                // Capture cubit before async gap
+                                final expenseCubit = context.read<ExpenseCubit>();
+                                final noteText = _noteController.text;
+
+                                String? imageUrl;
+                                if (_pickedImage != null) {
+                                  setState(() => _isUploading = true);
+                                  try {
+                                    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
+                                    final ref = FirebaseStorage.instance
+                                        .ref('expenses/$uid/${DateTime.now().millisecondsSinceEpoch}.jpg');
+                                    await ref.putFile(_pickedImage!);
+                                    imageUrl = await ref.getDownloadURL();
+                                  } catch (e) {
+                                    // Continue without image
+                                  }
+                                  if (mounted) setState(() => _isUploading = false);
+                                }
+
+                                if (!mounted) return;
+                                expenseCubit.addExpense(
+                                  ExpenseEntity(
+                                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                    userId: FirebaseAuth.instance.currentUser?.uid ?? '',
+                                    amount: amount,
+                                    category: _selectedCategory.name,
+                                    note: noteText.isNotEmpty ? noteText : null,
+                                    date: _selectedDate,
+                                    imageUrl: imageUrl,
+                                    createdAt: DateTime.now(),
+                                    updatedAt: DateTime.now(),
+                                  ),
+                                );
+                                if (_shareToFeed) {
+                                  expenseCubit.shareToFeed(
+                                    amount: amount,
+                                    category: _selectedCategory.name,
+                                    note: noteText.isNotEmpty ? noteText : null,
+                                    emoji: _selectedEmoji,
+                                    imageUrl: imageUrl,
+                                  );
+                                }
+                                _showPremiumToast('Đã lưu chi tiêu! 🎉');
+                                await Future.delayed(const Duration(milliseconds: 500));
+                                if (mounted) context.pop();
+                              },
+                              child: Container(
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF006A65), Color(0xFF4ECDC4)],
+                                  ),
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(color: const Color(0xFF006A65).withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 6)),
+                                  ],
+                                ),
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Text('Chia sẻ lên bảng tin', style: TextStyle(
-                                      fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w600,
-                                    )),
-                                    Text('Bạn bè sẽ thấy chi tiêu của bạn', style: TextStyle(
-                                      fontFamily: 'Inter', fontSize: 12,
-                                      color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
+                                    Icon(Icons.check_circle_rounded, color: Colors.white, size: 22),
+                                    SizedBox(width: 10),
+                                    Text('Lưu Giao Dịch', style: TextStyle(
+                                      fontFamily: 'Manrope', fontSize: 17, fontWeight: FontWeight.w800,
+                                      color: Colors.white, letterSpacing: 0.5,
                                     )),
                                   ],
                                 ),
                               ),
-                              Switch(
-                                value: _shareToFeed,
-                                activeTrackColor: const Color(0xFFFF6B6B),
-                                onChanged: (val) {
-                                  HapticFeedback.selectionClick();
-                                  setState(() => _shareToFeed = val);
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                            ),
                     ),
-
-                    const SizedBox(height: 40),
-                  ],
-                ),
-              ),
-
-              // ═══ Sticky Bottom Save Button ═══
-              Positioned(
-                left: 0, right: 0, bottom: 0,
-                child: Container(
-                  padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).padding.bottom + 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface.withValues(alpha: 0.85),
-                    border: Border(top: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.2))),
                   ),
-                  child: _isUploading
-                      ? const Center(child: CircularProgressIndicator(color: Color(0xFF4ECDC4)))
-                      : _SaveButton(
-                    onTap: () async {
-                      final amount = double.tryParse(
-                        _amountController.text.replaceAll('.', '').replaceAll(',', ''),
-                      );
-                      if (amount == null || amount <= 0) return;
-                      HapticFeedback.heavyImpact();
-
-                      String? imageUrl;
-                      // Upload image if picked
-                      if (_pickedImage != null) {
-                        setState(() => _isUploading = true);
-                        try {
-                          final uid = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
-                          final ref = FirebaseStorage.instance
-                              .ref('expenses/$uid/${DateTime.now().millisecondsSinceEpoch}.jpg');
-                          await ref.putFile(_pickedImage!);
-                          imageUrl = await ref.getDownloadURL();
-                        } catch (e) {
-                          // Continue without image if upload fails
-                        }
-                        if (mounted) setState(() => _isUploading = false);
-                      }
-
-                      if (!mounted) return;
-                      context.read<ExpenseCubit>().addExpense(
-                        ExpenseEntity(
-                          id: DateTime.now().millisecondsSinceEpoch.toString(),
-                          userId: FirebaseAuth.instance.currentUser?.uid ?? '', amount: amount,
-                          category: _selectedCategory.name,
-                          note: _noteController.text.isNotEmpty ? _noteController.text : null,
-                          date: _selectedDate,
-                          imageUrl: imageUrl,
-                          createdAt: DateTime.now(), updatedAt: DateTime.now(),
-                        ),
-                      );
-                      // Share to feed if toggled on
-                      if (_shareToFeed) {
-                        context.read<ExpenseCubit>().shareToFeed(
-                          amount: amount,
-                          category: _selectedCategory.name,
-                          note: _noteController.text.isNotEmpty ? _noteController.text : null,
-                          emoji: _selectedEmoji,
-                          imageUrl: imageUrl,
-                        );
-                      }
-                      context.pop();
-                    },
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _SaveButton extends StatefulWidget {
-  final VoidCallback onTap;
-  const _SaveButton({required this.onTap});
-
-  @override
-  State<_SaveButton> createState() => _SaveButtonState();
-}
-
-class _SaveButtonState extends State<_SaveButton> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) { setState(() => _pressed = false); widget.onTap(); },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.96 : 1.0,
-        duration: const Duration(milliseconds: 150),
-        child: Container(
-          width: double.infinity,
-          height: 58,
-          decoration: BoxDecoration(
-            gradient: AppColors.primaryGradient,
-            borderRadius: BorderRadius.circular(999),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Icon(Icons.check_circle_rounded, color: Colors.white, size: 24),
-              SizedBox(width: 8),
-              Text(AppStrings.saveTransaction, style: TextStyle(
-                fontFamily: 'Manrope', fontSize: 18, fontWeight: FontWeight.w700,
-                color: Colors.white,
-              )),
-            ],
+                ],
+              );
+            },
           ),
         ),
       ),
