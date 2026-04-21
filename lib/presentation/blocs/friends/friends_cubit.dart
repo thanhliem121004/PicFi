@@ -277,7 +277,7 @@ class FriendsCubit extends Cubit<FriendsState> {
   // ═══ CHAT ═══
 
   /// Gửi tin nhắn realtime
-  Future<void> sendMessage(String friendId, String message) async {
+  Future<void> sendMessage(String friendId, String message, {String? imageUrl}) async {
     if (_uid == null) return;
     final chatId = _getChatId(_uid!, friendId);
 
@@ -286,6 +286,7 @@ class FriendsCubit extends Cubit<FriendsState> {
         'senderId': _uid,
         'receiverId': friendId,
         'message': message,
+        'imageUrl': imageUrl,
         'timestamp': FieldValue.serverTimestamp(),
         'isRead': false,
       });

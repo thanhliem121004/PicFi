@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../domain/entities/chat_message.dart';
@@ -55,6 +59,26 @@ class _ChatScreenState extends State<ChatScreen> {
         );
       }
     });
+  }
+
+  Future<void> _sendPhoto() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.camera,
+      imageQuality: 70,
+      maxWidth: 1200,
+    );
+    if (picked == null) return;
+    HapticFeedback.lightImpact();
+    try {
+      final uid = _myUid;
+      final ref = FirebaseStorage.instance
+          .ref('chats/$uid/${DateTime.now().millisecondsSinceEpoch}.jpg');
+      await ref.putFile(File(picked.path));
+      final imageUrl = await ref.getDownloadURL();
+      if (!mounted) return;
+      context.read<FriendsCubit>().sendMessage(widget.friendId, '📷 Ảnh', imageUrl: imageUrl);
+      _scrollToBottom();
+    } catch (_) {}
   }
 
   @override
@@ -297,14 +321,38 @@ class _ChatScreenState extends State<ChatScreen> {
                                           ),
                                         ],
                                       ),
-                                      child: Text(
-                                        msg.message,
-                                        style: TextStyle(
-                                          fontFamily: 'Inter', fontSize: 15,
-                                          color: isMe ? Colors.white : AppColors.onSurface,
-                                          height: 1.4,
-                                        ),
-                                      ),
+                                    child: Column(
+                                      crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                                      children: [
+                                        if (msg.imageUrl != null && msg.imageUrl!.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(bottom: 6),
+                                            child: ClipRRect(
+                                              borderRadius: BorderRadius.circular(12),
+                                              child: CachedNetworkImage(
+                                                imageUrl: msg.imageUrl!,
+                                                width: 200,
+                                                height: 150,
+                                                fit: BoxFit.cover,
+                                                placeholder: (_, __) => Container(
+                                                  width: 200, height: 150,
+                                                  color: Colors.grey.withValues(alpha: 0.1),
+                                                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        if (msg.message != '📷 Ảnh')
+                                          Text(
+                                            msg.message,
+                                            style: TextStyle(
+                                              fontFamily: 'Inter', fontSize: 15,
+                                              color: isMe ? Colors.white : AppColors.onSurface,
+                                              height: 1.4,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
                                     ),
                                   ),
                                 ],
@@ -335,7 +383,10 @@ class _ChatScreenState extends State<ChatScreen> {
                         shape: BoxShape.circle,
                         color: const Color(0xFF4ECDC4).withValues(alpha: 0.08),
                       ),
-                      child: const Icon(Icons.camera_alt_rounded, color: Color(0xFF4ECDC4), size: 20),
+                      child: GestureDetector(
+                        onTap: _sendPhoto,
+                        child: const Icon(Icons.camera_alt_rounded, color: Color(0xFF4ECDC4), size: 20),
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
