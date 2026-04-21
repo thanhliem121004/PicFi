@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "340213919633",
+    "project_id": "fir-dtdm",
+    "storage_bucket": "fir-dtdm.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:340213919633:android:8f9e3f3c5bfdf8846eb430",
+        "android_client_info": {
+          "package_name": "com.picfi.picfi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCu-uCkmcftFfwlyCWkWaN6MRtWYWmY3Ig"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

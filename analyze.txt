@@ -1,0 +1,11 @@
+﻿Analyzing picfi...
+
+  error - lib\presentation\screens\auth\register_screen.dart:173:78 - The method 'createAccount' isn't defined for the type 'AuthCubit'. Try correcting the name to the name of an existing method, or defining a method named 'createAccount'. - undefined_method
+  error - lib\presentation\screens\auth\register_screen.dart:191:45 - The getter 'haveAccount' isn't defined for the type 'AppStrings'. Try importing the library that defines 'haveAccount', correcting the name to the name of an existing getter, or defining a getter or field named 'haveAccount'. - undefined_getter
+warning - lib\presentation\screens\friends\friends_screen.dart:169:25 - The value of the local variable 'index' isn't used. Try removing the variable or using it. - unused_local_variable
+warning - lib\presentation\screens\onboarding\onboarding_screen.dart:1:8 - Unused import: 'dart:math'. Try removing the import directive. - unused_import
+warning - test\widget_test.dart:1:8 - Unused import: 'package:flutter/material.dart'. Try removing the import directive. - unused_import
+   info - lib\presentation\blocs\expense\expense_cubit.dart:189:16 - Unnecessary braces in a string interpolation. Try removing the braces. - unnecessary_brace_in_string_interps
+   info - lib\presentation\screens\profile\profile_screen.dart:163:29 - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+
+7 issues found.

@@ -1,0 +1,6 @@
+﻿Analyzing picfi...
+
+warning - lib\presentation\screens\onboarding\onboarding_screen.dart:1:8 - Unused import: 'dart:async'. Try removing the import directive. - unused_import
+   info - lib\presentation\blocs\expense\expense_cubit.dart:189:16 - Unnecessary braces in a string interpolation. Try removing the braces. - unnecessary_brace_in_string_interps
+
+2 issues found.
