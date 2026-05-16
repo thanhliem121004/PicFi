@@ -22,9 +22,13 @@ class ExpenseListScreen extends StatefulWidget {
 class _ExpenseListScreenState extends State<ExpenseListScreen>
     with SingleTickerProviderStateMixin {
   String _selectedCategory = 'all';
+  String _selectedRange = 'all';
+  DateTime? _rangeStart;
+  DateTime? _rangeEnd;
   String _searchQuery = '';
   final _searchController = TextEditingController();
   final _debouncer = Debouncer(delay: const Duration(milliseconds: 300));
+  final _scrollController = ScrollController();
   late AnimationController _entryController;
   late Animation<double> _fadeIn;
   late Animation<double> _slideUp;
@@ -42,10 +46,19 @@ class _ExpenseListScreenState extends State<ExpenseListScreen>
       CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
     );
     _entryController.forward();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent * 0.8) {
+      context.read<ExpenseCubit>().loadMoreExpenses();
+    }
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _searchController.dispose();
     _entryController.dispose();
     super.dispose();
@@ -71,12 +84,37 @@ class _ExpenseListScreenState extends State<ExpenseListScreen>
         child: SafeArea(
           child: BlocBuilder<ExpenseCubit, ExpenseState>(
             builder: (context, state) {
+              final now = DateTime.now();
+              final today = DateTime(now.year, now.month, now.day);
+              DateTime? rangeStart;
+              DateTime? rangeEnd;
+              switch (_selectedRange) {
+                case 'today':
+                  rangeStart = today;
+                  rangeEnd = today.add(const Duration(days: 1));
+                  break;
+                case 'week':
+                  rangeStart = today.subtract(Duration(days: today.weekday - 1));
+                  rangeEnd = rangeStart.add(const Duration(days: 7));
+                  break;
+                case 'month':
+                  rangeStart = DateTime(today.year, today.month, 1);
+                  rangeEnd = DateTime(today.year, today.month + 1, 1);
+                  break;
+                case 'custom':
+                  if (_rangeStart != null) rangeStart = _rangeStart;
+                  if (_rangeEnd != null) rangeEnd = _rangeEnd?.add(const Duration(days: 1));
+                  break;
+              }
               final filteredExpenses = state.expenses.where((e) {
                 final matchesCategory = _selectedCategory == 'all' || e.category == _selectedCategory;
                 final matchesSearch = _searchQuery.isEmpty ||
                     (e.note?.toLowerCase().contains(_searchQuery) ?? false) ||
                     e.category.toLowerCase().contains(_searchQuery);
-                return matchesCategory && matchesSearch;
+                final matchesDate = rangeStart == null || rangeEnd == null ||
+                    (e.date.isAfter(rangeStart.subtract(const Duration(days: 1))) &&
+                     e.date.isBefore(rangeEnd));
+                return matchesCategory && matchesSearch && matchesDate;
               }).toList();
               final grouped = () {
                 final g = <String, List<dynamic>>{};
@@ -102,6 +140,7 @@ class _ExpenseListScreenState extends State<ExpenseListScreen>
                       await Future.delayed(const Duration(milliseconds: 500));
                     },
                     child: CustomScrollView(
+                    controller: _scrollController,
                     physics: const BouncingScrollPhysics(),
                     slivers: [
                       // ═══ Header ═══
@@ -176,7 +215,65 @@ class _ExpenseListScreenState extends State<ExpenseListScreen>
                           ),
                         ),
                       ),
-                      const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                      const SliverToBoxAdapter(child: SizedBox(height: 12)),
+
+                      // ═══ Date Range Filter Chips ═══
+                      SliverToBoxAdapter(
+                        child: Opacity(
+                          opacity: _fadeIn.value,
+                          child: SizedBox(
+                            height: 40,
+                            child: ListView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              children: [
+                                _DateChip(
+                                  label: AppStrings.todayLabel,
+                                  isSelected: _selectedRange == 'today',
+                                  onTap: () { HapticFeedback.selectionClick(); setState(() { _selectedRange = 'today'; _rangeStart = null; _rangeEnd = null; }); },
+                                ),
+                                _DateChip(
+                                  label: AppStrings.thisWeek,
+                                  isSelected: _selectedRange == 'week',
+                                  onTap: () { HapticFeedback.selectionClick(); setState(() { _selectedRange = 'week'; _rangeStart = null; _rangeEnd = null; }); },
+                                ),
+                                _DateChip(
+                                  label: 'Tháng này',
+                                  isSelected: _selectedRange == 'month',
+                                  onTap: () { HapticFeedback.selectionClick(); setState(() { _selectedRange = 'month'; _rangeStart = null; _rangeEnd = null; }); },
+                                ),
+                                _DateChip(
+                                  label: AppStrings.dateRange,
+                                  isSelected: _selectedRange == 'custom',
+                                  onTap: () async {
+                                    HapticFeedback.selectionClick();
+                                    final picked = await showDateRangePicker(
+                                      context: context,
+                                      firstDate: DateTime(2020),
+                                      lastDate: DateTime.now(),
+                                      builder: (context, child) => Theme(
+                                        data: ThemeData.light().copyWith(
+                                          colorScheme: const ColorScheme.light(primary: Color(0xFF4ECDC4)),
+                                        ),
+                                        child: child!,
+                                      ),
+                                    );
+                                    if (picked != null) {
+                                      setState(() {
+                                        _selectedRange = 'custom';
+                                        _rangeStart = picked.start;
+                                        _rangeEnd = picked.end;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
                       // ═══ Category Filter Chips ═══
                       SliverToBoxAdapter(
@@ -313,10 +410,60 @@ class _ExpenseListScreenState extends State<ExpenseListScreen>
                                       (c) => c.name == expense.category,
                                       orElse: () => ExpenseCategory.other,
                                     );
-                                    return _VibrantExpenseCard(
-                                      expense: expense,
-                                      category: category,
-                                      onTap: () => context.push('/expense-detail', extra: expense.id),
+                                    final expenseId = expense.id;
+                                    return Dismissible(
+                                      key: ValueKey(expenseId),
+                                      direction: DismissDirection.endToStart,
+                                      confirmDismiss: (_) async {
+                                        HapticFeedback.mediumImpact();
+                                        context.read<ExpenseCubit>().deleteExpense(expenseId);
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).clearSnackBars();
+                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                            content: const Row(children: [
+                                              Icon(Icons.delete_outline_rounded, color: Colors.white, size: 18),
+                                              SizedBox(width: 10),
+                                              Text('Đã xóa chi tiêu', style: TextStyle(fontFamily: 'Inter', fontSize: 14)),
+                                            ]),
+                                            backgroundColor: const Color(0xFF006A65),
+                                            behavior: SnackBarBehavior.floating,
+                                            margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                            action: SnackBarAction(
+                                              label: 'Hoàn tác',
+                                              textColor: Colors.white,
+                                              onPressed: () {},
+                                            ),
+                                          ));
+                                        }
+                                        return false;
+                                      },
+                                      background: Container(
+                                        margin: const EdgeInsets.only(bottom: 10),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFF6B6B),
+                                          borderRadius: BorderRadius.circular(22),
+                                        ),
+                                        alignment: Alignment.centerRight,
+                                        padding: const EdgeInsets.only(right: 24),
+                                        child: const Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.delete_outline_rounded, color: Colors.white, size: 24),
+                                            SizedBox(height: 4),
+                                            Text('Xóa', style: TextStyle(
+                                              fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                            )),
+                                          ],
+                                        ),
+                                      ),
+                                      child: _VibrantExpenseCard(
+                                        expense: expense,
+                                        category: category,
+                                        onTap: () => context.push('/expense-detail', extra: expense.id),
+                                      ),
                                     );
                                   },
                                   childCount: entry.value.length,
@@ -326,6 +473,13 @@ class _ExpenseListScreenState extends State<ExpenseListScreen>
                           ],
                         );
                       }),
+                      if (state.isLoadingMore)
+                        const SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Center(child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF4ECDC4))),
+                          ),
+                        ),
                       const SliverToBoxAdapter(child: SizedBox(height: 100)),
                     ],
                   ),
@@ -333,6 +487,60 @@ class _ExpenseListScreenState extends State<ExpenseListScreen>
                 },
               );
             },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DateChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _DateChip({
+    required this.label, required this.isSelected, required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = const Color(0xFF006A65);
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: isSelected ? LinearGradient(colors: [color, color.withValues(alpha: 0.7)]) : null,
+            color: isSelected ? null : Colors.white.withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(20),
+            border: isSelected ? null : Border.all(color: color.withValues(alpha: 0.15)),
+            boxShadow: isSelected ? [
+              BoxShadow(color: color.withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 4)),
+            ] : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                label == AppStrings.dateRange ? Icons.date_range_rounded : Icons.today_rounded,
+                size: 14,
+                color: isSelected ? Colors.white : color,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontFamily: 'Inter', fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? Colors.white : color,
+                ),
+              ),
+            ],
           ),
         ),
       ),

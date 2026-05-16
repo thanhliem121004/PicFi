@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_strings.dart';
 import 'core/routes/app_router.dart';
+import 'l10n/l10n.dart';
 import 'presentation/blocs/theme/theme_cubit.dart';
 import 'presentation/blocs/expense/expense_cubit.dart';
 import 'presentation/blocs/auth/auth_cubit.dart';
@@ -63,12 +64,16 @@ class PicFiApp extends StatelessWidget {
       ],
       child: BlocBuilder<ThemeCubit, ThemeMode>(
         builder: (context, themeMode) {
+          final localeState = context.watch<LocaleCubit>().state;
           return MaterialApp.router(
             title: AppStrings.appName,
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeMode,
+            locale: Locale(localeState.localeCode),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
             routerConfig: AppRouter.router,
             scaffoldMessengerKey: scaffoldMessengerKey,
           );

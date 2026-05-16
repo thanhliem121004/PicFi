@@ -15,6 +15,7 @@ import '../../presentation/screens/profile/profile_screen.dart';
 import '../../presentation/screens/wallet/wallet_screen.dart';
 import '../../presentation/screens/group/group_list_screen.dart';
 import '../../presentation/screens/group/group_detail_screen.dart';
+import '../../presentation/screens/notifications/notifications_screen.dart';
 import '../../domain/entities/expense_entity.dart';
 
 class AppRouter {
@@ -40,6 +41,7 @@ class AppRouter {
       GoRoute(path: '/chat/:friendId', builder: (context, state) { final args = state.extra as Map<String, dynamic>? ?? {}; return ChatScreen(friendId: state.pathParameters['friendId'] ?? '', friendName: args['friendName'] ?? ''); }),
       GoRoute(path: '/wallets', builder: (context, state) => const WalletScreen()),
       GoRoute(path: '/groups', builder: (context, state) => const GroupListScreen()),
+      GoRoute(path: '/notifications', builder: (context, state) => const NotificationsScreen()),
       GoRoute(path: '/group-detail/:id', builder: (context, state) { return GroupDetailScreen(groupId: state.pathParameters['id'] ?? ''); }),
     ],
   );
