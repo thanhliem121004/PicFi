@@ -10,6 +10,10 @@ import 'presentation/blocs/expense/expense_cubit.dart';
 import 'presentation/blocs/auth/auth_cubit.dart';
 import 'presentation/blocs/budget/budget_cubit.dart';
 import 'presentation/blocs/friends/friends_cubit.dart';
+import 'presentation/blocs/recurring/recurring_cubit.dart';
+import 'presentation/blocs/savings/savings_goal_cubit.dart';
+import 'presentation/blocs/backup/backup_cubit.dart';
+import 'presentation/blocs/locale/locale_cubit.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/offline_service.dart';
 import 'core/services/deep_link_service.dart';
@@ -44,6 +48,10 @@ class PicFiApp extends StatelessWidget {
         BlocProvider(create: (_) => ExpenseCubit()),
         BlocProvider(create: (_) => BudgetCubit()),
         BlocProvider(create: (_) => FriendsCubit()),
+        BlocProvider(create: (_) => RecurringCubit()),
+        BlocProvider(create: (_) => SavingsGoalCubit()),
+        BlocProvider(create: (_) => BackupCubit()),
+        BlocProvider(create: (_) => LocaleCubit()),
       ],
       child: BlocBuilder<ThemeCubit, ThemeMode>(
         builder: (context, themeMode) {
