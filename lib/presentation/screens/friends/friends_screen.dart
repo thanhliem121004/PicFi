@@ -471,94 +471,140 @@ class _FriendsScreenState extends State<FriendsScreen>
                                 if (index >= state.friends.length) return null;
                                 final friend = state.friends[index];
                                 final color = _friendColors[index % _friendColors.length];
+                                final friendId = friend.friendId;
 
                                 return Opacity(
                                   opacity: _fadeIn.value,
                                   child: Transform.translate(
                                     offset: Offset(0, _slideUp.value * (1 + index * 0.15)),
-                                    child: GestureDetector(
-                                      onTap: () => context.push('/chat', extra: {
-                                        'friendId': friend.friendId,
-                                        'friendName': friend.friendName,
-                                      }),
-                                      child: Container(
+                                    child: Dismissible(
+                                      key: ValueKey(friend.id),
+                                      direction: DismissDirection.endToStart,
+                                      confirmDismiss: (_) async {
+                                        HapticFeedback.mediumImpact();
+                                        context.read<FriendsCubit>().unfriend(friendId);
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).clearSnackBars();
+                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                            content: const Row(children: [
+                                              Icon(Icons.person_remove_rounded, color: Colors.white, size: 18),
+                                              SizedBox(width: 10),
+                                              Text('Đã hủy kết bạn', style: TextStyle(fontFamily: 'Inter', fontSize: 14)),
+                                            ]),
+                                            backgroundColor: const Color(0xFFFF6B6B),
+                                            behavior: SnackBarBehavior.floating,
+                                            margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                            duration: const Duration(seconds: 3),
+                                          ));
+                                        }
+                                        return false;
+                                      },
+                                      background: Container(
                                         margin: const EdgeInsets.only(bottom: 10),
-                                        padding: const EdgeInsets.all(16),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.8),
+                                          color: const Color(0xFFFF6B6B),
                                           borderRadius: BorderRadius.circular(22),
-                                          border: Border.all(color: color.withValues(alpha: 0.1)),
-                                          boxShadow: [
-                                            BoxShadow(color: color.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4)),
+                                        ),
+                                        alignment: Alignment.centerRight,
+                                        padding: const EdgeInsets.only(right: 24),
+                                        child: const Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.person_remove_rounded, color: Colors.white, size: 24),
+                                            SizedBox(height: 4),
+                                            Text('Hủy kết bạn', style: TextStyle(
+                                              fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                            )),
                                           ],
                                         ),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.all(2),
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                gradient: friend.streak > 0
-                                                    ? LinearGradient(colors: [color, color.withValues(alpha: 0.5)])
-                                                    : null,
-                                                border: friend.streak == 0
-                                                    ? Border.all(color: color.withValues(alpha: 0.3), width: 2)
-                                                    : null,
-                                              ),
-                                              child: Container(
-                                                width: 48, height: 48,
-                                                decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
-                                                child: Icon(Icons.person_rounded, color: color, size: 24),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 14),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(friend.friendName, style: const TextStyle(
-                                                    fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600,
-                                                  )),
-                                                  const SizedBox(height: 2),
-                                                  Text(friend.friendEmail ?? 'Đang hoạt động', style: TextStyle(
-                                                    fontFamily: 'Inter', fontSize: 13,
-                                                    color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
-                                                  )),
-                                                ],
-                                              ),
-                                            ),
-                                            if (friend.streak > 0)
+                                      ),
+                                      child: GestureDetector(
+                                        onTap: () => context.push('/chat', extra: {
+                                          'friendId': friend.friendId,
+                                          'friendName': friend.friendName,
+                                        }),
+                                        child: Container(
+                                          margin: const EdgeInsets.only(bottom: 10),
+                                          padding: const EdgeInsets.all(16),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withValues(alpha: 0.8),
+                                            borderRadius: BorderRadius.circular(22),
+                                            border: Border.all(color: color.withValues(alpha: 0.1)),
+                                            boxShadow: [
+                                              BoxShadow(color: color.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4)),
+                                            ],
+                                          ),
+                                          child: Row(
+                                            children: [
                                               Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                                padding: const EdgeInsets.all(2),
                                                 decoration: BoxDecoration(
-                                                  gradient: const LinearGradient(colors: [Color(0xFFFFA568), Color(0xFFFF6B6B)]),
-                                                  borderRadius: BorderRadius.circular(14),
-                                                  boxShadow: [
-                                                    BoxShadow(color: const Color(0xFFFF6B6B).withValues(alpha: 0.2), blurRadius: 8),
-                                                  ],
+                                                  shape: BoxShape.circle,
+                                                  gradient: friend.streak > 0
+                                                      ? LinearGradient(colors: [color, color.withValues(alpha: 0.5)])
+                                                      : null,
+                                                  border: friend.streak == 0
+                                                      ? Border.all(color: color.withValues(alpha: 0.3), width: 2)
+                                                      : null,
                                                 ),
-                                                child: Row(
-                                                  mainAxisSize: MainAxisSize.min,
+                                                child: Container(
+                                                  width: 48, height: 48,
+                                                  decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
+                                                  child: Icon(Icons.person_rounded, color: color, size: 24),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 14),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
                                                   children: [
-                                                    const Text('🔥', style: TextStyle(fontSize: 14)),
-                                                    const SizedBox(width: 4),
-                                                    Text('${friend.streak}', style: const TextStyle(
-                                                      fontFamily: 'Manrope', fontSize: 15, fontWeight: FontWeight.w800,
-                                                      color: Colors.white,
+                                                    Text(friend.friendName, style: const TextStyle(
+                                                      fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600,
+                                                    )),
+                                                    const SizedBox(height: 2),
+                                                    Text(friend.friendEmail ?? 'Đang hoạt động', style: TextStyle(
+                                                      fontFamily: 'Inter', fontSize: 13,
+                                                      color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
                                                     )),
                                                   ],
                                                 ),
                                               ),
-                                            const SizedBox(width: 8),
-                                            Container(
-                                              width: 36, height: 36,
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                color: color.withValues(alpha: 0.08),
+                                              if (friend.streak > 0)
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                                  decoration: BoxDecoration(
+                                                    gradient: const LinearGradient(colors: [Color(0xFFFFA568), Color(0xFFFF6B6B)]),
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    boxShadow: [
+                                                      BoxShadow(color: const Color(0xFFFF6B6B).withValues(alpha: 0.2), blurRadius: 8),
+                                                    ],
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      const Text('🔥', style: TextStyle(fontSize: 14)),
+                                                      const SizedBox(width: 4),
+                                                      Text('${friend.streak}', style: const TextStyle(
+                                                        fontFamily: 'Manrope', fontSize: 15, fontWeight: FontWeight.w800,
+                                                        color: Colors.white,
+                                                      )),
+                                                    ],
+                                                  ),
+                                                ),
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                width: 36, height: 36,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color: color.withValues(alpha: 0.08),
+                                                ),
+                                                child: Icon(Icons.chat_bubble_rounded, size: 16, color: color),
                                               ),
-                                              child: Icon(Icons.chat_bubble_rounded, size: 16, color: color),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),

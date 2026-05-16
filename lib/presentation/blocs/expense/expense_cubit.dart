@@ -5,20 +5,26 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../domain/entities/expense_entity.dart';
 
+const int _pageSize = 20;
+
 // ═══════════ STATE ═══════════
 class ExpenseState extends Equatable {
   final List<ExpenseEntity> expenses;
   final bool isLoading;
+  final bool isLoadingMore;
   final String? error;
   final double totalIncome;
   final double totalExpense;
+  final bool hasMore;
 
   const ExpenseState({
     this.expenses = const [],
     this.isLoading = false,
+    this.isLoadingMore = false,
     this.error,
     this.totalIncome = 0,
     this.totalExpense = 0,
+    this.hasMore = true,
   });
 
   double get balance => totalIncome - totalExpense;
@@ -26,21 +32,25 @@ class ExpenseState extends Equatable {
   ExpenseState copyWith({
     List<ExpenseEntity>? expenses,
     bool? isLoading,
+    bool? isLoadingMore,
     String? error,
     double? totalIncome,
     double? totalExpense,
+    bool? hasMore,
   }) {
     return ExpenseState(
       expenses: expenses ?? this.expenses,
       isLoading: isLoading ?? this.isLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       error: error,
       totalIncome: totalIncome ?? this.totalIncome,
       totalExpense: totalExpense ?? this.totalExpense,
+      hasMore: hasMore ?? this.hasMore,
     );
   }
 
   @override
-  List<Object?> get props => [expenses, isLoading, error, totalIncome, totalExpense];
+  List<Object?> get props => [expenses, isLoading, isLoadingMore, error, totalIncome, totalExpense, hasMore];
 }
 
 // ═══════════ CUBIT ═══════════
@@ -48,6 +58,8 @@ class ExpenseCubit extends Cubit<ExpenseState> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   StreamSubscription? _expenseSub;
+  DocumentSnapshot? _lastDoc;
+  bool _hasMore = true;
 
   ExpenseCubit() : super(const ExpenseState()) {
     _listenToExpenses();
@@ -59,20 +71,25 @@ class ExpenseCubit extends Cubit<ExpenseState> {
       _firestore.collection('users').doc(_uid).collection('expenses');
 
   void _listenToExpenses() {
-    // Re-subscribe when auth state changes
     _auth.authStateChanges().listen((user) {
       _expenseSub?.cancel();
+      _lastDoc = null;
+      _hasMore = true;
       if (user != null) {
-        emit(state.copyWith(isLoading: true));
+        emit(state.copyWith(isLoading: true, hasMore: true));
         _fetchIncome(user.uid);
         _expenseSub = _firestore
             .collection('users')
             .doc(user.uid)
             .collection('expenses')
             .orderBy('date', descending: true)
+            .limit(_pageSize)
             .snapshots()
             .listen((snapshot) {
-          final expenses = snapshot.docs.map((doc) {
+          final docs = snapshot.docs;
+          _lastDoc = docs.isNotEmpty ? docs.last : null;
+          _hasMore = docs.length >= _pageSize;
+          final expenses = docs.map((doc) {
             final data = doc.data();
             return ExpenseEntity(
               id: doc.id,
@@ -94,12 +111,56 @@ class ExpenseCubit extends Cubit<ExpenseState> {
             expenses: expenses,
             totalExpense: totalExpense,
             isLoading: false,
+            hasMore: _hasMore,
           ));
         });
       } else {
         emit(const ExpenseState());
       }
     });
+  }
+
+  Future<void> loadMoreExpenses() async {
+    if (_uid == null || !_hasMore || state.isLoadingMore || _lastDoc == null) return;
+    emit(state.copyWith(isLoadingMore: true));
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('expenses')
+          .orderBy('date', descending: true)
+          .startAfterDocument(_lastDoc!)
+          .limit(_pageSize)
+          .get();
+      final docs = snapshot.docs;
+      _lastDoc = docs.isNotEmpty ? docs.last : null;
+      _hasMore = docs.length >= _pageSize;
+      final newExpenses = docs.map((doc) {
+        final data = doc.data();
+        return ExpenseEntity(
+          id: doc.id,
+          userId: _uid!,
+          amount: (data['amount'] as num).toDouble(),
+          category: data['category'] ?? 'other',
+          note: data['note'],
+          date: (data['date'] as Timestamp).toDate(),
+          imageUrl: data['imageUrl'],
+          location: data['location'],
+          createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        );
+      }).toList();
+      final allExpenses = [...state.expenses, ...newExpenses];
+      final totalExpense = allExpenses.fold<double>(0, (sum, e) => sum + e.amount);
+      emit(state.copyWith(
+        expenses: allExpenses,
+        totalExpense: totalExpense,
+        isLoadingMore: false,
+        hasMore: _hasMore,
+      ));
+    } catch (e) {
+      emit(state.copyWith(isLoadingMore: false, error: 'Lỗi tải thêm: $e'));
+    }
   }
 
   Future<void> _fetchIncome(String userId) async {
@@ -225,6 +286,8 @@ class ExpenseCubit extends Cubit<ExpenseState> {
   Future<void> refresh() async {
     emit(state.copyWith(isLoading: true));
     _expenseSub?.cancel();
+    _lastDoc = null;
+    _hasMore = true;
     final uid = _auth.currentUser?.uid;
     if (uid != null) {
       _fetchIncome(uid);
@@ -233,9 +296,13 @@ class ExpenseCubit extends Cubit<ExpenseState> {
           .doc(uid)
           .collection('expenses')
           .orderBy('date', descending: true)
+          .limit(_pageSize)
           .snapshots()
           .listen((snapshot) {
-        final expenses = snapshot.docs.map((doc) {
+        final docs = snapshot.docs;
+        _lastDoc = docs.isNotEmpty ? docs.last : null;
+        _hasMore = docs.length >= _pageSize;
+        final expenses = docs.map((doc) {
           final data = doc.data();
           return ExpenseEntity(
             id: doc.id,
@@ -257,6 +324,7 @@ class ExpenseCubit extends Cubit<ExpenseState> {
           expenses: expenses,
           totalExpense: totalExpense,
           isLoading: false,
+          hasMore: _hasMore,
         ));
       });
     } else {

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../domain/entities/friend_entity.dart';
 import '../../../domain/entities/chat_message.dart';
 
@@ -10,6 +11,8 @@ class FriendsState extends Equatable {
   final List<FriendEntity> friends;
   final List<FriendEntity> requests;
   final bool isLoading;
+  final bool isLoadingMore;
+  final bool hasMore;
   final String? error;
   final String? successMessage;
 
@@ -17,6 +20,8 @@ class FriendsState extends Equatable {
     this.friends = const [],
     this.requests = const [],
     this.isLoading = false,
+    this.isLoadingMore = false,
+    this.hasMore = true,
     this.error,
     this.successMessage,
   });
@@ -25,6 +30,8 @@ class FriendsState extends Equatable {
     List<FriendEntity>? friends,
     List<FriendEntity>? requests,
     bool? isLoading,
+    bool? isLoadingMore,
+    bool? hasMore,
     String? error,
     String? successMessage,
   }) {
@@ -32,25 +39,33 @@ class FriendsState extends Equatable {
       friends: friends ?? this.friends,
       requests: requests ?? this.requests,
       isLoading: isLoading ?? this.isLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasMore: hasMore ?? this.hasMore,
       error: error,
       successMessage: successMessage,
     );
   }
 
   @override
-  List<Object?> get props => [friends, requests, isLoading, error, successMessage];
+  List<Object?> get props => [friends, requests, isLoading, isLoadingMore, hasMore, error, successMessage];
 }
+
+const int _friendsPageSize = 20;
 
 class FriendsCubit extends Cubit<FriendsState> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   StreamSubscription? _friendsSub;
   StreamSubscription? _requestsSub;
+  DocumentSnapshot? _lastFriendDoc;
+  bool _hasMoreFriends = true;
 
   FriendsCubit() : super(const FriendsState()) {
     _auth.authStateChanges().listen((user) {
       _friendsSub?.cancel();
       _requestsSub?.cancel();
+      _lastFriendDoc = null;
+      _hasMoreFriends = true;
       if (user != null) {
         _listenToFriends(user.uid);
         _listenToRequests(user.uid);
@@ -68,9 +83,14 @@ class FriendsCubit extends Cubit<FriendsState> {
         .doc(uid)
         .collection('friends')
         .where('status', isEqualTo: 'accepted')
+        .orderBy('createdAt', descending: true)
+        .limit(_friendsPageSize)
         .snapshots()
         .listen((snapshot) {
-      final friends = snapshot.docs.map((doc) {
+      final docs = snapshot.docs;
+      _lastFriendDoc = docs.isNotEmpty ? docs.last : null;
+      _hasMoreFriends = docs.length >= _friendsPageSize;
+      final friends = docs.map((doc) {
         final d = doc.data();
         return FriendEntity(
           id: doc.id,
@@ -84,8 +104,48 @@ class FriendsCubit extends Cubit<FriendsState> {
           createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
         );
       }).toList();
-      emit(state.copyWith(friends: friends));
+      emit(state.copyWith(friends: friends, hasMore: _hasMoreFriends));
     });
+  }
+
+  Future<void> loadMoreFriends() async {
+    if (_uid == null || !_hasMoreFriends || state.isLoadingMore || _lastFriendDoc == null) return;
+    emit(state.copyWith(isLoadingMore: true));
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('friends')
+          .where('status', isEqualTo: 'accepted')
+          .orderBy('createdAt', descending: true)
+          .startAfterDocument(_lastFriendDoc!)
+          .limit(_friendsPageSize)
+          .get();
+      final docs = snapshot.docs;
+      _lastFriendDoc = docs.isNotEmpty ? docs.last : null;
+      _hasMoreFriends = docs.length >= _friendsPageSize;
+      final newFriends = docs.map((doc) {
+        final d = doc.data();
+        return FriendEntity(
+          id: doc.id,
+          friendId: d['friendId'] ?? '',
+          friendName: d['friendName'] ?? 'Không rõ',
+          friendEmail: d['friendEmail'],
+          friendPhotoUrl: d['friendPhotoUrl'],
+          streak: d['streak'] ?? 0,
+          lastInteraction: (d['lastInteraction'] as Timestamp?)?.toDate(),
+          status: FriendStatus.accepted,
+          createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        );
+      }).toList();
+      emit(state.copyWith(
+        friends: [...state.friends, ...newFriends],
+        isLoadingMore: false,
+        hasMore: _hasMoreFriends,
+      ));
+    } catch (e) {
+      emit(state.copyWith(isLoadingMore: false, error: 'Lỗi tải thêm bạn bè: $e'));
+    }
   }
 
   void _listenToRequests(String uid) {
@@ -113,10 +173,57 @@ class FriendsCubit extends Cubit<FriendsState> {
     });
   }
 
+  /// Hủy kết bạn
+  Future<void> unfriend(String friendId) async {
+    if (_uid == null) return;
+    try {
+      final myDocs = await _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('friends')
+          .where('friendId', isEqualTo: friendId)
+          .limit(1)
+          .get();
+      for (final doc in myDocs.docs) {
+        await doc.reference.delete();
+      }
+      final friendDocs = await _firestore
+          .collection('users')
+          .doc(friendId)
+          .collection('friends')
+          .where('friendId', isEqualTo: _uid)
+          .limit(1)
+          .get();
+      for (final doc in friendDocs.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      emit(state.copyWith(error: 'Lỗi hủy kết bạn: $e'));
+    }
+  }
+
   /// Gửi lời mời kết bạn bằng PicFi ID (VD: PF-A3B7K9)
   Future<void> sendFriendRequestByPicfiId(String picfiId) async {
     if (_uid == null) return;
     emit(state.copyWith(isLoading: true, error: null, successMessage: null));
+
+    // Rate limiting: max 10 requests per hour
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final requestTimestamps = prefs.getStringList('friendRequestTimestamps') ?? [];
+      final oneHourAgo = now - 3600000;
+      requestTimestamps.removeWhere((t) => int.tryParse(t) == null || int.parse(t) < oneHourAgo);
+      if (requestTimestamps.length >= 10) {
+        emit(state.copyWith(
+          isLoading: false,
+          error: 'Bạn đã gửi quá nhiều lời mời kết bạn trong giờ này',
+        ));
+        return;
+      }
+      requestTimestamps.add(now.toString());
+      await prefs.setStringList('friendRequestTimestamps', requestTimestamps);
+    } catch (_) {}
 
     try {
       final trimmedId = picfiId.trim();
