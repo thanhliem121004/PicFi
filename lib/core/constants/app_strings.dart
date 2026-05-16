@@ -136,6 +136,14 @@ class AppStrings {
   static const String expenseShared = 'đã chia sẻ chi tiêu';
   static const String markAsRead = 'Đã đọc';
   static const String clearAll = 'Xóa tất cả';
+  static const String noNotifications = 'Chưa có thông báo nào';
+  static const String expenseSharedTitle = 'Chi tiêu được chia sẻ';
+  static const String friendRequestTitle = 'Lời mời kết bạn';
+  static const String budgetAlertTitle = 'Cảnh báo ngân sách';
+  static const String todayLabel = 'Hôm nay';
+  static const String thisWeek = 'Tuần này';
+  static const String dateRange = 'Khoảng thời gian';
+  static const String selectCurrency = 'Chọn loại tiền';
 
   // Offline
   static const String offlineMode = 'Bạn đang offline';

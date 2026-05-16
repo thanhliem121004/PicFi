@@ -8,7 +8,9 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/expense_categories.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../domain/entities/expense_entity.dart';
 import '../../blocs/expense/expense_cubit.dart';
 
@@ -23,9 +25,11 @@ class AddExpenseScreen extends StatefulWidget {
 
 class _AddExpenseScreenState extends State<AddExpenseScreen>
     with SingleTickerProviderStateMixin {
+  final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController(text: '0');
   final _noteController = TextEditingController();
   ExpenseCategory _selectedCategory = ExpenseCategory.food;
+  String _selectedCurrency = 'VND';
   DateTime _selectedDate = DateTime.now();
   bool _shareToFeed = true;
   String _selectedEmoji = '💸';
@@ -193,7 +197,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                   SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
                     padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 100),
-                    child: Column(
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
                       children: [
                         // ═══ Header ═══
                         Opacity(
@@ -397,14 +403,58 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                               ),
                               child: Row(
                                 children: [
-                                  ShaderMask(
-                                    shaderCallback: (bounds) => const LinearGradient(
-                                      colors: [Color(0xFF4ECDC4), Color(0xFF006A65)],
-                                    ).createShader(bounds),
-                                    child: const Text('đ', style: TextStyle(
-                                      fontFamily: 'Manrope', fontSize: 28, fontWeight: FontWeight.w800,
-                                      color: Colors.white,
-                                    )),
+                                  GestureDetector(
+                                    onTap: () {
+                                      showModalBottomSheet(
+                                        context: context,
+                                        backgroundColor: Colors.transparent,
+                                        builder: (ctx) => Container(
+                                          padding: const EdgeInsets.all(24),
+                                          decoration: const BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                                          ),
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Container(width: 40, height: 4, decoration: BoxDecoration(
+                                                color: AppColors.outlineVariant.withValues(alpha: 0.3),
+                                                borderRadius: BorderRadius.circular(2),
+                                              )),
+                                              const SizedBox(height: 20),
+                                              const Text(AppStrings.selectCurrency, style: TextStyle(
+                                                fontFamily: 'Manrope', fontSize: 22, fontWeight: FontWeight.w800,
+                                              )),
+                                              const SizedBox(height: 16),
+                                              _CurrencyOption(
+                                                code: 'VND', symbol: 'đ',
+                                                isSelected: _selectedCurrency == 'VND',
+                                                onTap: () { Navigator.pop(ctx); setState(() => _selectedCurrency = 'VND'); },
+                                              ),
+                                              const SizedBox(height: 8),
+                                              _CurrencyOption(
+                                                code: 'USD', symbol: '\$',
+                                                isSelected: _selectedCurrency == 'USD',
+                                                onTap: () { Navigator.pop(ctx); setState(() => _selectedCurrency = 'USD'); },
+                                              ),
+                                              const SizedBox(height: 16),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: ShaderMask(
+                                      shaderCallback: (bounds) => const LinearGradient(
+                                        colors: [Color(0xFF4ECDC4), Color(0xFF006A65)],
+                                      ).createShader(bounds),
+                                      child: Text(
+                                        _selectedCurrency == 'USD' ? '\$' : 'đ',
+                                        style: const TextStyle(
+                                          fontFamily: 'Manrope', fontSize: 28, fontWeight: FontWeight.w800,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
@@ -424,18 +474,62 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                                     ),
                                   ),
                                   const SizedBox(width: 12),
-                                  Text('VNĐ', style: TextStyle(
-                                    fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w700,
-                                    color: AppColors.onSurfaceVariant.withValues(alpha: 0.4),
-                                  )),
-                                ],
-                              ),
-                            ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      showModalBottomSheet(
+                                        context: context,
+                                        backgroundColor: Colors.transparent,
+                                        builder: (ctx) => Container(
+                                          padding: const EdgeInsets.all(24),
+                                          decoration: const BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                                          ),
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Container(width: 40, height: 4, decoration: BoxDecoration(
+                                                color: AppColors.outlineVariant.withValues(alpha: 0.3),
+                                                borderRadius: BorderRadius.circular(2),
+                                              )),
+                                              const SizedBox(height: 20),
+                                              const Text(AppStrings.selectCurrency, style: TextStyle(
+                                                fontFamily: 'Manrope', fontSize: 22, fontWeight: FontWeight.w800,
+                                              )),
+                                              const SizedBox(height: 16),
+                                              _CurrencyOption(
+                                                code: 'VND', symbol: 'đ',
+                                                isSelected: _selectedCurrency == 'VND',
+                                                onTap: () { Navigator.pop(ctx); setState(() => _selectedCurrency = 'VND'); },
+                                              ),
+                                              const SizedBox(height: 8),
+                                              _CurrencyOption(
+                                                code: 'USD', symbol: '\$',
+                                                isSelected: _selectedCurrency == 'USD',
+                                                onTap: () { Navigator.pop(ctx); setState(() => _selectedCurrency = 'USD'); },
+                                              ),
+                                              const SizedBox(height: 16),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: Text(
+                                      _selectedCurrency,
+                                      style: TextStyle(
+                                        fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w700,
+                                        color: AppColors.onSurfaceVariant.withValues(alpha: 0.4),
+                                      ),
+                                    ),
+                                  ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 16),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
 
-                        // ═══ Categories ═══
+                    // ═══ Categories ═══
                         Opacity(
                           opacity: _fadeIn.value,
                           child: Transform.translate(
@@ -658,6 +752,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                         const SizedBox(height: 100),
                       ],
                     ),
+                    ),
                   ),
 
                   // ═══ Sticky Bottom Save Button ═══
@@ -728,7 +823,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                                   ExpenseEntity(
                                     id: DateTime.now().millisecondsSinceEpoch.toString(),
                                     userId: FirebaseAuth.instance.currentUser?.uid ?? '',
-                                    amount: amount,
+                                    amount: _selectedCurrency == 'USD' ? CurrencyFormatter.convertToVND(amount, 'USD') : amount,
+                                    currency: _selectedCurrency,
                                     category: _selectedCategory.name,
                                     note: noteText.isNotEmpty ? noteText : null,
                                     date: _selectedDate,
@@ -780,6 +876,87 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
               );
             },
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CurrencyOption extends StatelessWidget {
+  final String code;
+  final String symbol;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _CurrencyOption({
+    required this.code,
+    required this.symbol,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF4ECDC4).withValues(alpha: 0.08) : const Color(0xFFF7F9F8),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF4ECDC4) : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSelected
+                    ? const Color(0xFF4ECDC4).withValues(alpha: 0.15)
+                    : Colors.white,
+              ),
+              child: Center(
+                child: Text(symbol, style: TextStyle(
+                  fontFamily: 'Manrope', fontSize: 22, fontWeight: FontWeight.w800,
+                  color: isSelected ? const Color(0xFF006A65) : AppColors.onSurfaceVariant,
+                )),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(code, style: TextStyle(
+                    fontFamily: 'Manrope', fontSize: 18, fontWeight: FontWeight.w700,
+                    color: isSelected ? const Color(0xFF006A65) : AppColors.onSurface,
+                  )),
+                  const SizedBox(height: 2),
+                  Text(
+                    code == 'VND' ? 'Việt Nam Đồng' : 'US Dollar',
+                    style: TextStyle(
+                      fontFamily: 'Inter', fontSize: 13,
+                      color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Container(
+                width: 24, height: 24,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFF4ECDC4),
+                ),
+                child: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
+              ),
+          ],
         ),
       ),
     );

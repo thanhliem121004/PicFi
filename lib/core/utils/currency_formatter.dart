@@ -5,31 +5,62 @@ class CurrencyFormatter {
 
   static final _formatter = NumberFormat('#,###', 'vi');
 
-  static String format(double amount) {
-    return '${_formatter.format(amount.abs())} đ';
+  static const _rates = {'USD': 25000, 'VND': 1};
+
+  static String _symbol(String currency) {
+    switch (currency) {
+      case 'USD': return 'USD';
+      case 'VND': return 'đ';
+      default: return currency;
+    }
   }
 
-  static String formatWithSign(double amount) {
+  static String format(double amount, {String currency = 'VND'}) {
+    final abs = amount.abs();
+    if (currency == 'USD') {
+      final usdAmount = abs / _rates['USD']!;
+      return '\$${NumberFormat('#,###.##', 'en').format(usdAmount)}';
+    }
+    return '${_formatter.format(abs)} ${_symbol(currency)}';
+  }
+
+  static String formatWithSign(double amount, {String currency = 'VND'}) {
     final sign = amount >= 0 ? '+' : '-';
-    return '$sign${_formatter.format(amount.abs())} đ';
+    if (currency == 'USD') {
+      final usdAmount = amount.abs() / _rates['USD']!;
+      return '$sign\$${NumberFormat('#,###.##', 'en').format(usdAmount)}';
+    }
+    return '$sign${_formatter.format(amount.abs())} ${_symbol(currency)}';
   }
 
-  static String formatCompact(double amount) {
-    return '${_formatter.format(amount.abs())}đ';
+  static String formatCompact(double amount, {String currency = 'VND'}) {
+    if (currency == 'USD') {
+      final usdAmount = amount.abs() / _rates['USD']!;
+      return '\$${NumberFormat('#,###.##', 'en').format(usdAmount)}';
+    }
+    return '${_formatter.format(amount.abs())}${_symbol(currency)}';
   }
 
-  static String formatShort(double amount) {
+  static String formatShort(double amount, {String currency = 'VND'}) {
     final abs = amount.abs();
+    if (currency == 'USD') {
+      final usdAmount = abs / _rates['USD']!;
+      if (usdAmount >= 1000000) return '\$${(usdAmount / 1000000).toStringAsFixed(1)}M';
+      if (usdAmount >= 1000) return '\$${(usdAmount / 1000).toStringAsFixed(0)}K';
+      return '\$${usdAmount.toStringAsFixed(2)}';
+    }
     if (abs >= 1000000) return '${(abs / 1000000).toStringAsFixed(1)}M đ';
     if (abs >= 1000) return '${(abs / 1000).toStringAsFixed(0)}K đ';
     return '${abs.toStringAsFixed(0)} đ';
   }
 
-  static String formatOverlay(double amount) {
-    final abs = amount.abs();
-    if (abs >= 1000000) return '${(abs / 1000000).toStringAsFixed(1)}M đ';
-    if (abs >= 1000) return '${(abs / 1000).toStringAsFixed(0)}K đ';
-    return '${abs.toStringAsFixed(0)} đ';
+  static String formatOverlay(double amount, {String currency = 'VND'}) {
+    return formatShort(amount, currency: currency);
+  }
+
+  static double convertToVND(double amount, String fromCurrency) {
+    final rate = _rates[fromCurrency] ?? 1;
+    return amount * rate;
   }
 
   static double? parse(String text) {
