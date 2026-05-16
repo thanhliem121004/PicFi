@@ -193,8 +193,8 @@ class _RecurringExpenseScreenState extends State<RecurringExpenseScreen>
                             category: selectedCategory.name,
                             note: note.isNotEmpty ? note : null,
                             interval: selectedInterval,
+                            startDate: DateTime.now(),
                             nextDueDate: DateTime.now(),
-                            createdAt: DateTime.now(),
                           ),
                         );
                         if (ctx.mounted) Navigator.pop(ctx);

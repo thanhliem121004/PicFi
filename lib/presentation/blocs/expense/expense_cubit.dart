@@ -63,6 +63,8 @@ class ExpenseCubit extends Cubit<ExpenseState> {
     _auth.authStateChanges().listen((user) {
       _expenseSub?.cancel();
       if (user != null) {
+        emit(state.copyWith(isLoading: true));
+        _fetchIncome(user.uid);
         _expenseSub = _firestore
             .collection('users')
             .doc(user.uid)
@@ -91,7 +93,6 @@ class ExpenseCubit extends Cubit<ExpenseState> {
           emit(state.copyWith(
             expenses: expenses,
             totalExpense: totalExpense,
-            totalIncome: 24000000, // TODO: Implement income tracking
             isLoading: false,
           ));
         });
@@ -99,6 +100,20 @@ class ExpenseCubit extends Cubit<ExpenseState> {
         emit(const ExpenseState());
       }
     });
+  }
+
+  Future<void> _fetchIncome(String userId) async {
+    try {
+      final doc = await _firestore.collection('users').doc(userId).collection('settings').doc('income').get();
+      if (doc.exists) {
+        final income = (doc.data()?['amount'] as num?)?.toDouble() ?? 0;
+        emit(state.copyWith(totalIncome: income));
+      } else {
+        emit(state.copyWith(totalIncome: 0));
+      }
+    } catch (_) {
+      emit(state.copyWith(totalIncome: 0));
+    }
   }
 
   Future<void> addExpense(ExpenseEntity expense) async {
@@ -205,6 +220,48 @@ class ExpenseCubit extends Cubit<ExpenseState> {
       grouped[key]!.add(expense);
     }
     return grouped;
+  }
+
+  Future<void> refresh() async {
+    emit(state.copyWith(isLoading: true));
+    _expenseSub?.cancel();
+    final uid = _auth.currentUser?.uid;
+    if (uid != null) {
+      _fetchIncome(uid);
+      _expenseSub = _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('expenses')
+          .orderBy('date', descending: true)
+          .snapshots()
+          .listen((snapshot) {
+        final expenses = snapshot.docs.map((doc) {
+          final data = doc.data();
+          return ExpenseEntity(
+            id: doc.id,
+            userId: uid,
+            amount: (data['amount'] as num).toDouble(),
+            category: data['category'] ?? 'other',
+            note: data['note'],
+            date: (data['date'] as Timestamp).toDate(),
+            imageUrl: data['imageUrl'],
+            location: data['location'],
+            createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          );
+        }).toList();
+
+        final totalExpense = expenses.fold<double>(0, (sum, e) => sum + e.amount);
+
+        emit(state.copyWith(
+          expenses: expenses,
+          totalExpense: totalExpense,
+          isLoading: false,
+        ));
+      });
+    } else {
+      emit(const ExpenseState());
+    }
   }
 
   @override

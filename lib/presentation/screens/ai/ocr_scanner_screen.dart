@@ -5,8 +5,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/expense_categories.dart';
-import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../blocs/ai/ai_cubit.dart';
 import '../../blocs/premium/premium_cubit.dart';

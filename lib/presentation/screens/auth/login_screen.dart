@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../blocs/auth/auth_cubit.dart';
@@ -171,7 +172,53 @@ class _LoginScreenState extends State<LoginScreen>
                           child: Padding(
                             padding: const EdgeInsets.only(right: 32),
                             child: TextButton(
-                              onPressed: () {},
+                              onPressed: () {
+                                HapticFeedback.mediumImpact();
+                                final emailCtrl = TextEditingController();
+                                showDialog(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text('Quên mật khẩu', style: TextStyle(fontFamily: 'Manrope', fontWeight: FontWeight.w700)),
+                                    content: TextField(
+                                      controller: emailCtrl,
+                                      decoration: const InputDecoration(
+                                        hintText: 'Nhập email của bạn',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      keyboardType: TextInputType.emailAddress,
+                                    ),
+                                    actions: [
+                                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Huỷ')),
+                                      TextButton(
+                                        onPressed: () async {
+                                          final email = emailCtrl.text.trim();
+                                          if (email.isEmpty) return;
+                                          try {
+                                            await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                                            if (ctx.mounted) Navigator.pop(ctx);
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                                content: const Text('Đã gửi email đặt lại mật khẩu!', style: TextStyle(fontFamily: 'Inter')),
+                                                backgroundColor: const Color(0xFF006A65),
+                                                behavior: SnackBarBehavior.floating,
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                              ));
+                                            }
+                                          } catch (e) {
+                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                              content: Text('Lỗi: $e', style: const TextStyle(fontFamily: 'Inter')),
+                                              backgroundColor: const Color(0xFFFF6B6B),
+                                              behavior: SnackBarBehavior.floating,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                            ));
+                                          }
+                                        },
+                                        child: const Text('Gửi'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
                               child: const Text(AppStrings.forgotPassword, style: TextStyle(
                                 fontFamily: 'Inter', fontSize: 13,
                                 fontWeight: FontWeight.w600, color: Colors.white70,

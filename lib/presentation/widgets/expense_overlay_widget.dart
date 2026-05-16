@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import '../../domain/entities/expense_entity.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/constants/expense_categories.dart';
+import '../../core/constants/expense_overlay_config.dart';
 
 /// Widget overlay chi tiêu hiển thị lên ảnh — giống Locket
 /// Dùng chung cho: add_expense_screen, feed_screen, expense_detail, home_screen
