@@ -51,11 +51,111 @@ class _RegisterScreenState extends State<RegisterScreen>
     super.dispose();
   }
 
+  void _showVerificationDialog(BuildContext context, String email) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: const Text('Xác nhận email', style: TextStyle(fontFamily: 'Manrope', fontWeight: FontWeight.w700)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64, height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF4ECDC4).withValues(alpha: 0.1),
+              ),
+              child: const Icon(Icons.email_rounded, size: 32, color: Color(0xFF4ECDC4)),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Email xác nhận đã gửi đến $email. Vui lòng kiểm tra hộp thư.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontFamily: 'Inter', fontSize: 15),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: GestureDetector(
+                onTap: () async {
+                  context.read<AuthCubit>().resendVerificationEmail();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Đã gửi lại email xác nhận!', style: TextStyle(fontFamily: 'Inter')),
+                      backgroundColor: const Color(0xFF006A65),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFF4ECDC4).withValues(alpha: 0.3)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Center(child: Text('Gửi lại email', style: TextStyle(
+                    fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF006A65),
+                  ))),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: GestureDetector(
+                onTap: () {
+                  context.read<AuthCubit>().checkEmailVerified().then((verified) {
+                    if (verified) {
+                      Navigator.of(ctx).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Email đã được xác nhận! Đăng nhập ngay.', style: TextStyle(fontFamily: 'Inter')),
+                          backgroundColor: const Color(0xFF006A65),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Email chưa được xác nhận. Vui lòng kiểm tra hộp thư.', style: TextStyle(fontFamily: 'Inter')),
+                          backgroundColor: const Color(0xFFFF6B6B),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      );
+                    }
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [Color(0xFF006A65), Color(0xFF4ECDC4)]),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Center(child: Text('Tôi đã xác nhận', style: TextStyle(
+                    fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white,
+                  ))),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<AuthCubit, AuthState>(
       listener: (context, state) {
         if (state.isAuthenticated) context.go('/main');
+        if (state.emailVerificationSent && state.email != null) {
+          _showVerificationDialog(context, state.email!);
+        }
         if (state.error != null) {
           HapticFeedback.heavyImpact();
           ScaffoldMessenger.of(context).showSnackBar(

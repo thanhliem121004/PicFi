@@ -8,8 +8,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../core/constants/expense_categories.dart';
 import '../../blocs/theme/theme_cubit.dart';
 import '../../blocs/auth/auth_cubit.dart';
+import '../../blocs/budget/budget_cubit.dart';
 import '../../blocs/expense/expense_cubit.dart';
 import '../../blocs/friends/friends_cubit.dart';
 import '../../blocs/premium/premium_cubit.dart';
@@ -808,99 +810,257 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   // ═══ Budget Dialog ═══
   void _showBudgetDialog(BuildContext context) {
+    final budgetCubit = context.read<BudgetCubit>();
+    final budgets = budgetCubit.state.budgets;
     final controller = TextEditingController();
+    String? editingBudgetId;
+    String? editingCategory = 'other';
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(
-              color: AppColors.outlineVariant.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(2),
-            )),
-            const SizedBox(height: 20),
-            Container(
-              width: 64, height: 64,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(colors: [
-                  const Color(0xFF4ECDC4).withValues(alpha: 0.15),
-                  const Color(0xFF006A65).withValues(alpha: 0.1),
-                ]),
-              ),
-              child: const Icon(Icons.account_balance_wallet_rounded, size: 28, color: Color(0xFF4ECDC4)),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Container(
+            padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             ),
-            const SizedBox(height: 16),
-            const Text('Ngân sách hàng tháng', style: TextStyle(
-              fontFamily: 'Manrope', fontSize: 22, fontWeight: FontWeight.w800,
-            )),
-            const SizedBox(height: 6),
-            Text('Đặt ngân sách để theo dõi chi tiêu', style: TextStyle(
-              fontFamily: 'Inter', fontSize: 14,
-              color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
-            )),
-            const SizedBox(height: 20),
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFF7F9F8),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFF4ECDC4).withValues(alpha: 0.15)),
-              ),
-              child: TextField(
-                controller: controller,
-                autofocus: true,
-                keyboardType: TextInputType.number,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontFamily: 'Manrope', fontSize: 28, fontWeight: FontWeight.w800),
-                decoration: InputDecoration(
-                  hintText: '5,000,000 ₫',
-                  hintStyle: TextStyle(
-                    fontFamily: 'Manrope', fontSize: 28, fontWeight: FontWeight.w800,
-                    color: AppColors.outline.withValues(alpha: 0.3),
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: GestureDetector(
-                onTap: () {
-                  final budgetText = controller.text.replaceAll('.', '').replaceAll(',', '');
-                  final budget = double.tryParse(budgetText);
-                  if (budget != null && budget > 0) {
-                    Navigator.pop(ctx);
-                    HapticFeedback.mediumImpact();
-                    _showPremiumToast('Đã đặt ngân sách ${CurrencyFormatter.formatShort(budget)} 💰');
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(width: 40, height: 4, decoration: BoxDecoration(
+                  color: AppColors.outlineVariant.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                )),
+                const SizedBox(height: 20),
+                Container(
+                  width: 64, height: 64,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFF4ECDC4), Color(0xFF006A65)]),
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(color: const Color(0xFF4ECDC4).withValues(alpha: 0.25), blurRadius: 12, offset: const Offset(0, 4)),
-                    ],
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(colors: [
+                      const Color(0xFF4ECDC4).withValues(alpha: 0.15),
+                      const Color(0xFF006A65).withValues(alpha: 0.1),
+                    ]),
                   ),
-                  child: const Center(child: Text('Lưu ngân sách 💰', style: TextStyle(
-                    fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white,
-                  ))),
+                  child: const Icon(Icons.account_balance_wallet_rounded, size: 28, color: Color(0xFF4ECDC4)),
                 ),
-              ),
+                const SizedBox(height: 16),
+                Text(
+                  editingBudgetId != null ? 'Chỉnh sửa ngân sách' : 'Ngân sách hàng tháng',
+                  style: const TextStyle(fontFamily: 'Manrope', fontSize: 22, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 6),
+                Text(editingBudgetId != null ? 'Cập nhật hạn mức cho danh mục' : 'Đặt ngân sách để theo dõi chi tiêu', style: TextStyle(
+                  fontFamily: 'Inter', fontSize: 14,
+                  color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
+                )),
+                const SizedBox(height: 20),
+
+                // Category selector
+                if (!(editingBudgetId != null)) ...[
+                  SizedBox(
+                    height: 50,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      children: ExpenseCategory.values.map((cat) {
+                        final selected = editingCategory == cat.name;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: GestureDetector(
+                            onTap: () => setSheetState(() => editingCategory = cat.name),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: selected ? cat.color.withValues(alpha: 0.12) : const Color(0xFFF7F9F8),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: selected ? cat.color : Colors.transparent),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(cat.icon, size: 16, color: selected ? cat.color : AppColors.onSurfaceVariant),
+                                  const SizedBox(width: 6),
+                                  Text(cat.label, style: TextStyle(
+                                    fontFamily: 'Inter', fontSize: 13,
+                                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                    color: selected ? cat.color : AppColors.onSurfaceVariant,
+                                  )),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Amount field
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7F9F8),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFF4ECDC4).withValues(alpha: 0.15)),
+                  ),
+                  child: TextField(
+                    controller: controller,
+                    autofocus: true,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontFamily: 'Manrope', fontSize: 28, fontWeight: FontWeight.w800),
+                    decoration: InputDecoration(
+                      hintText: '5,000,000 ₫',
+                      hintStyle: TextStyle(
+                        fontFamily: 'Manrope', fontSize: 28, fontWeight: FontWeight.w800,
+                        color: AppColors.outline.withValues(alpha: 0.3),
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Existing budgets list
+                if (budgets.isNotEmpty && editingBudgetId == null) ...[
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 120),
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: budgets.map((b) {
+                        final cat = ExpenseCategory.values.firstWhere(
+                          (c) => c.name == b.category, orElse: () => ExpenseCategory.other,
+                        );
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF7F9F8),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(cat.icon, size: 16, color: cat.color),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text('${cat.label}: ${CurrencyFormatter.formatShort(b.monthlyLimit)}', style: const TextStyle(
+                                  fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600,
+                                )),
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  setSheetState(() {
+                                    editingBudgetId = b.id;
+                                    editingCategory = b.category;
+                                    controller.text = b.monthlyLimit.toStringAsFixed(0);
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF4ECDC4).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.edit_rounded, size: 14, color: Color(0xFF4ECDC4)),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.pop(ctx);
+                                  HapticFeedback.mediumImpact();
+                                  context.read<BudgetCubit>().deleteBudget(b.id);
+                                  _showPremiumToast('Đã xóa ngân sách ${cat.label} 🗑️');
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFF6B6B).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.delete_rounded, size: 14, color: Color(0xFFFF6B6B)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Save/Update button
+                SizedBox(
+                  width: double.infinity,
+                  child: GestureDetector(
+                    onTap: () {
+                      final budgetText = controller.text.replaceAll('.', '').replaceAll(',', '');
+                      final budget = double.tryParse(budgetText);
+                      if (budget != null && budget > 0) {
+                        Navigator.pop(ctx);
+                        HapticFeedback.mediumImpact();
+                        if (editingBudgetId != null) {
+                          context.read<BudgetCubit>().updateBudgetLimit(editingBudgetId!, budget);
+                          _showPremiumToast('Đã cập nhật ngân sách! ✨');
+                        } else {
+                          context.read<BudgetCubit>().addBudget(editingCategory ?? 'other', budget);
+                          _showPremiumToast('Đã đặt ngân sách ${CurrencyFormatter.formatShort(budget)} 💰');
+                        }
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [Color(0xFF4ECDC4), Color(0xFF006A65)]),
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(color: const Color(0xFF4ECDC4).withValues(alpha: 0.25), blurRadius: 12, offset: const Offset(0, 4)),
+                        ],
+                      ),
+                      child: Center(child: Text(
+                        editingBudgetId != null ? 'Cập nhật ngân sách' : 'Lưu ngân sách 💰',
+                        style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+                      )),
+                    ),
+                  ),
+                ),
+                if (editingBudgetId != null) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        HapticFeedback.mediumImpact();
+                        context.read<BudgetCubit>().deleteBudget(editingBudgetId!);
+                        _showPremiumToast('Đã xóa ngân sách 🗑️');
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF6B6B).withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: const Color(0xFFFF6B6B).withValues(alpha: 0.2)),
+                        ),
+                        child: const Center(child: Text('Xóa ngân sách', style: TextStyle(
+                          fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w600,
+                          color: Color(0xFFFF6B6B),
+                        ))),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

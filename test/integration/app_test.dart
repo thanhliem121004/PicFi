@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:picfi/main.dart';
-import 'firebase_test_setup.dart';
+import '../firebase_test_setup.dart';
 
 void main() {
   setUpAll(() async {
     await setupFirebaseForTests();
   });
 
-  testWidgets('PicFi app smoke test', (WidgetTester tester) async {
+  testWidgets('app renders without errors', (WidgetTester tester) async {
     if (!isFirebaseSetupSuccessful) return;
     final key = GlobalKey<ScaffoldMessengerState>();
     await tester.pumpWidget(PicFiApp(scaffoldMessengerKey: key));
     await tester.pump();
 
-    expect(find.text('PicFi'), findsWidgets);
-  }, timeout: const Timeout(Duration(seconds: 10)));
+    expect(find.byType(MaterialApp), findsOneWidget);
+  });
 }

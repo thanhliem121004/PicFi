@@ -15,6 +15,7 @@ class AuthState extends Equatable {
   final String? email;
   final String? photoUrl;
   final String? error;
+  final bool emailVerificationSent;
 
   const AuthState({
     this.isAuthenticated = false,
@@ -25,6 +26,7 @@ class AuthState extends Equatable {
     this.email,
     this.photoUrl,
     this.error,
+    this.emailVerificationSent = false,
   });
 
   AuthState copyWith({
@@ -36,6 +38,7 @@ class AuthState extends Equatable {
     String? email,
     String? photoUrl,
     String? error,
+    bool? emailVerificationSent,
   }) {
     return AuthState(
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
@@ -46,11 +49,12 @@ class AuthState extends Equatable {
       email: email ?? this.email,
       photoUrl: photoUrl ?? this.photoUrl,
       error: error,
+      emailVerificationSent: emailVerificationSent ?? this.emailVerificationSent,
     );
   }
 
   @override
-  List<Object?> get props => [isAuthenticated, isLoading, userId, picfiId, displayName, email, photoUrl, error];
+  List<Object?> get props => [isAuthenticated, isLoading, userId, picfiId, displayName, email, photoUrl, error, emailVerificationSent];
 }
 
 // ═══════════ CUBIT ═══════════
@@ -58,8 +62,11 @@ class AuthCubit extends Cubit<AuthState> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  bool _isSigningUp = false;
+
   AuthCubit() : super(const AuthState()) {
     _auth.authStateChanges().listen((User? user) async {
+      if (_isSigningUp) return;
       if (user != null) {
         await _loadUserProfile(user);
       } else {
@@ -114,6 +121,12 @@ class AuthCubit extends Cubit<AuthState> {
     emit(state.copyWith(isLoading: true, error: null));
     try {
       await _auth.signInWithEmailAndPassword(email: email, password: password);
+      final user = _auth.currentUser;
+      if (user != null && !user.emailVerified) {
+        await _auth.signOut();
+        emit(state.copyWith(isLoading: false, error: 'Vui lòng xác nhận email trước khi đăng nhập'));
+        return;
+      }
     } on FirebaseAuthException catch (e) {
       String msg;
       switch (e.code) {
@@ -193,6 +206,10 @@ class AuthCubit extends Cubit<AuthState> {
     } else {
       await signInWithPicfiId(input, password);
     }
+    if (_auth.currentUser != null && !_auth.currentUser!.emailVerified) {
+      await _auth.signOut();
+      emit(state.copyWith(isLoading: false, error: 'Vui lòng xác nhận email trước khi đăng nhập'));
+    }
   }
 
   Future<void> signInWithGoogle() async {
@@ -249,6 +266,7 @@ class AuthCubit extends Cubit<AuthState> {
       }
 
       // Create Firebase Auth account
+      _isSigningUp = true;
       final cred = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -266,7 +284,17 @@ class AuthCubit extends Cubit<AuthState> {
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
-      // authStateChanges listener will pick up the new user
+
+      // Send verification email
+      await _auth.currentUser?.sendEmailVerification();
+      await _auth.signOut();
+      _isSigningUp = false;
+      emit(state.copyWith(
+        isLoading: false,
+        emailVerificationSent: true,
+        email: email,
+      ));
+      return;
     } on FirebaseAuthException catch (e) {
       String msg;
       switch (e.code) {
@@ -307,6 +335,19 @@ class AuthCubit extends Cubit<AuthState> {
     } catch (e) {
       emit(state.copyWith(error: 'Lỗi cập nhật: $e'));
     }
+  }
+
+  Future<bool> checkEmailVerified() async {
+    await _auth.currentUser?.reload();
+    final verified = _auth.currentUser?.emailVerified ?? false;
+    if (verified) {
+      emit(state.copyWith(emailVerificationSent: false));
+    }
+    return verified;
+  }
+
+  Future<void> resendVerificationEmail() async {
+    await _auth.currentUser?.sendEmailVerification();
   }
 
   Future<void> signOut() async {

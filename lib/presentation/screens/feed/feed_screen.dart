@@ -23,6 +23,11 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
 
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
+  final _scrollController = ScrollController();
+  DocumentSnapshot? _lastFeedDoc;
+  bool _hasMoreFeed = true;
+  bool _isLoadingMoreFeed = false;
+  final List<QueryDocumentSnapshot> _allFeedDocs = [];
 
   @override
   void initState() {
@@ -37,10 +42,48 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
       CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
     );
     _entryController.forward();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent * 0.8) {
+      _loadMoreFeed();
+    }
+  }
+
+  Future<void> _loadMoreFeed() async {
+    if (!_hasMoreFeed || _isLoadingMoreFeed || _lastFeedDoc == null) return;
+    setState(() => _isLoadingMoreFeed = true);
+    try {
+      final snapshot = await _firestore
+          .collection('feed')
+          .orderBy('sharedAt', descending: true)
+          .startAfterDocument(_lastFeedDoc!)
+          .limit(20)
+          .get();
+      final docs = snapshot.docs;
+      if (docs.isNotEmpty) {
+        _lastFeedDoc = docs.last;
+        _hasMoreFeed = docs.length >= 20;
+        setState(() {
+          _allFeedDocs.addAll(docs);
+          _isLoadingMoreFeed = false;
+        });
+      } else {
+        setState(() {
+          _hasMoreFeed = false;
+          _isLoadingMoreFeed = false;
+        });
+      }
+    } catch (_) {
+      setState(() => _isLoadingMoreFeed = false);
+    }
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _entryController.dispose();
     super.dispose();
   }
@@ -125,7 +168,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                       stream: _firestore
                           .collection('feed')
                           .orderBy('sharedAt', descending: true)
-                          .limit(50)
+                          .limit(20)
                           .snapshots(),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -142,7 +185,15 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                           );
                         }
 
-                        final docs = snapshot.data?.docs ?? [];
+                        final streamDocs = snapshot.data?.docs ?? [];
+                        if (streamDocs.isNotEmpty && _allFeedDocs.isEmpty) {
+                          _lastFeedDoc = streamDocs.last;
+                          _hasMoreFeed = streamDocs.length >= 20;
+                          _allFeedDocs.addAll(streamDocs);
+                        } else if (streamDocs.isEmpty && _allFeedDocs.isNotEmpty) {
+                          // Keep existing docs if stream returns empty (e.g. filter)
+                        }
+                        final docs = _allFeedDocs.isNotEmpty ? _allFeedDocs : streamDocs;
 
                         if (docs.isEmpty) {
                           return Opacity(
@@ -204,10 +255,17 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                             await Future.delayed(const Duration(milliseconds: 500));
                           },
                           child: ListView.builder(
+                          controller: _scrollController,
                           physics: const BouncingScrollPhysics(),
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                          itemCount: docs.length,
+                          itemCount: docs.length + (_isLoadingMoreFeed ? 1 : 0),
                           itemBuilder: (context, index) {
+                            if (index >= docs.length) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                child: Center(child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF4ECDC4))),
+                              );
+                            }
                             final data = docs[index].data() as Map<String, dynamic>;
                             final isMe = data['userId'] == uid;
 

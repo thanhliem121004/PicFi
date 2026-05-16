@@ -10,6 +10,7 @@ class ExpenseEntity extends Equatable {
   final String? thumbnailUrl;
   final String? localImagePath;
   final String? location;
+  final String currency;
   final DateTime date;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -24,6 +25,7 @@ class ExpenseEntity extends Equatable {
     this.thumbnailUrl,
     this.localImagePath,
     this.location,
+    this.currency = 'VND',
     required this.date,
     required this.createdAt,
     required this.updatedAt,
@@ -39,6 +41,7 @@ class ExpenseEntity extends Equatable {
     String? thumbnailUrl,
     String? localImagePath,
     String? location,
+    String? currency,
     DateTime? date,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -53,6 +56,7 @@ class ExpenseEntity extends Equatable {
       thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
       localImagePath: localImagePath ?? this.localImagePath,
       location: location ?? this.location,
+      currency: currency ?? this.currency,
       date: date ?? this.date,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -63,6 +67,6 @@ class ExpenseEntity extends Equatable {
   List<Object?> get props => [
         id, userId, amount, category, note,
         imageUrl, thumbnailUrl, localImagePath,
-        location, date, createdAt, updatedAt,
+        location, currency, date, createdAt, updatedAt,
       ];
 }

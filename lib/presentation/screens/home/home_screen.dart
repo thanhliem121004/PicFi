@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/expense_categories.dart';
@@ -9,6 +11,7 @@ import '../../../core/utils/date_formatter.dart';
 import '../../blocs/expense/expense_cubit.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../widgets/shimmer_loading.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -165,29 +168,53 @@ class _HomeScreenState extends State<HomeScreen>
                               ),
                               const SizedBox(width: 10),
                               // Notification
-                              Container(
-                                width: 44, height: 44,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white.withValues(alpha: 0.8),
-                                  border: Border.all(color: const Color(0xFFFF6B6B).withValues(alpha: 0.2)),
-                                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
-                                ),
-                                child: Stack(
-                                  children: [
-                                    const Center(child: Icon(Icons.notifications_rounded, color: Color(0xFFFF6B6B), size: 22)),
-                                    Positioned(
-                                      right: 10, top: 10,
-                                      child: Container(
-                                        width: 9, height: 9,
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFF6B6B),
-                                          shape: BoxShape.circle,
-                                          border: Border.all(color: Colors.white, width: 1.5),
-                                        ),
+                              GestureDetector(
+                                onTap: () => context.push('/notifications'),
+                                child: StreamBuilder<QuerySnapshot>(
+                                  stream: FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(FirebaseAuth.instance.currentUser?.uid ?? '')
+                                      .collection('notifications')
+                                      .where('isRead', isEqualTo: false)
+                                      .snapshots(),
+                                  builder: (context, snapshot) {
+                                    final unread = snapshot.data?.docs.length ?? 0;
+                                    return Container(
+                                      width: 44, height: 44,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.white.withValues(alpha: 0.8),
+                                        border: Border.all(color: const Color(0xFFFF6B6B).withValues(alpha: 0.2)),
+                                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
                                       ),
-                                    ),
-                                  ],
+                                      child: Stack(
+                                        children: [
+                                          const Center(child: Icon(Icons.notifications_rounded, color: Color(0xFFFF6B6B), size: 22)),
+                                          if (unread > 0)
+                                            Positioned(
+                                              right: 8, top: 8,
+                                              child: Container(
+                                                padding: EdgeInsets.all(unread > 9 ? 3 : 4),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFFF6B6B),
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(color: Colors.white, width: 1.5),
+                                                ),
+                                                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                                                child: Text(
+                                                  unread > 99 ? '99+' : '$unread',
+                                                  style: const TextStyle(
+                                                    fontFamily: 'Inter', fontSize: 9,
+                                                    fontWeight: FontWeight.w700, color: Colors.white,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                             ],

@@ -68,6 +68,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return BlocBuilder<ConnectivityCubit, ConnectivityState>(
       builder: (context, connState) {
         return Scaffold(
@@ -77,9 +78,11 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Color(0xFFFF6B6B), Color(0xFFF0B27A)],
+                      colors: isDark
+                          ? [const Color(0xFF8C1520), const Color(0xFF733600)]
+                          : [const Color(0xFFFF6B6B), const Color(0xFFF0B27A)],
                     ),
                   ),
                   child: SafeArea(
@@ -137,10 +140,15 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Colors.white.withValues(alpha: 0.85),
-              Colors.white.withValues(alpha: 0.95),
-            ],
+            colors: isDark
+                ? [
+                    const Color(0xFF1A201F).withValues(alpha: 0.95),
+                    const Color(0xFF1A201F).withValues(alpha: 0.98),
+                  ]
+                : [
+                    Colors.white.withValues(alpha: 0.85),
+                    Colors.white.withValues(alpha: 0.95),
+                  ],
           ),
           boxShadow: [
             BoxShadow(
