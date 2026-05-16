@@ -8,6 +8,7 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../blocs/expense/expense_cubit.dart';
 import '../../blocs/auth/auth_cubit.dart';
+import '../../widgets/shimmer_loading.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -81,6 +82,9 @@ class _HomeScreenState extends State<HomeScreen>
         child: SafeArea(
           child: BlocBuilder<ExpenseCubit, ExpenseState>(
             builder: (context, state) {
+              if (state.isLoading && state.expenses.isEmpty) {
+                return _ShimmerHomeContent();
+              }
               return AnimatedBuilder(
                 animation: Listenable.merge([_entryController, _pulseController]),
                 builder: (context, _) {
@@ -583,6 +587,41 @@ class _HomeScreenState extends State<HomeScreen>
 // ═══════════════════════════════════════════════════════
 // VIBRANT HOME WIDGETS
 // ═══════════════════════════════════════════════════════
+class _ShimmerHomeContent extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerLoading(
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+        children: [
+          const SizedBox(height: 60),
+          ShimmerPlaceholder(height: 180, borderRadius: 28),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(child: ShimmerPlaceholder(height: 120, borderRadius: 22)),
+              const SizedBox(width: 12),
+              Expanded(child: ShimmerPlaceholder(height: 120, borderRadius: 22)),
+            ],
+          ),
+          const SizedBox(height: 24),
+          ShimmerPlaceholder(height: 20, borderRadius: 8),
+          const SizedBox(height: 16),
+          ShimmerPlaceholder(height: 90, borderRadius: 16),
+          const SizedBox(height: 16),
+          ShimmerPlaceholder(height: 20, borderRadius: 8),
+          const SizedBox(height: 12),
+          ...List.generate(3, (_) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: ShimmerPlaceholder(height: 76, borderRadius: 22),
+          )),
+        ],
+      ),
+    );
+  }
+}
+
 class _BalanceStat extends StatelessWidget {
   final String label, value;
   final IconData icon;

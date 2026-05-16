@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/services/offline_service.dart';
 
 class ConnectivityState extends Equatable {
@@ -29,12 +31,32 @@ class ConnectivityCubit extends Cubit<ConnectivityState> {
   }
 
   Future<void> _flushPendingActions() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
     await _offlineService.flushQueue((action) async {
       final type = action['type'] as String?;
       switch (type) {
         case 'addExpense':
+          final data = action['data'] as Map<String, dynamic>?;
+          if (data != null) {
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(uid)
+                .collection('expenses')
+                .add(data);
+          }
           break;
         case 'deleteExpense':
+          final expenseId = action['expenseId'] as String?;
+          if (expenseId != null) {
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(uid)
+                .collection('expenses')
+                .doc(expenseId)
+                .delete();
+          }
           break;
         default:
           break;

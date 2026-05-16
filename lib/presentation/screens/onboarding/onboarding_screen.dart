@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 
@@ -84,8 +85,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                 child: Align(
                   alignment: Alignment.centerRight,
-                  child: GestureDetector(
-                    onTap: () => context.go('/login'),
+                  child:                   GestureDetector(
+                    onTap: () async {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setBool('hasSeenOnboarding', true);
+                      if (context.mounted) context.go('/login');
+                    },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
@@ -352,6 +357,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                 curve: Curves.easeOutCubic,
                               );
                             } else {
+                              SharedPreferences.getInstance().then((prefs) {
+                                prefs.setBool('hasSeenOnboarding', true);
+                              });
                               context.go('/login');
                             }
                           },

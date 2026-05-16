@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../domain/entities/expense_entity.dart';
+import '../../../core/constants/expense_overlay_config.dart';
 
 class ImageEditorScreen extends StatefulWidget {
   final String imagePath;

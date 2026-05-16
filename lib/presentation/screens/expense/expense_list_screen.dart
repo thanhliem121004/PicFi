@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -6,10 +7,13 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/expense_categories.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/debouncer.dart';
 import '../../blocs/expense/expense_cubit.dart';
 
 class ExpenseListScreen extends StatefulWidget {
-  const ExpenseListScreen({super.key});
+  final String? initialCategory;
+
+  const ExpenseListScreen({super.key, this.initialCategory});
 
   @override
   State<ExpenseListScreen> createState() => _ExpenseListScreenState();
@@ -18,7 +22,9 @@ class ExpenseListScreen extends StatefulWidget {
 class _ExpenseListScreenState extends State<ExpenseListScreen>
     with SingleTickerProviderStateMixin {
   String _selectedCategory = 'all';
+  String _searchQuery = '';
   final _searchController = TextEditingController();
+  final _debouncer = Debouncer(delay: const Duration(milliseconds: 300));
   late AnimationController _entryController;
   late Animation<double> _fadeIn;
   late Animation<double> _slideUp;
@@ -65,12 +71,37 @@ class _ExpenseListScreenState extends State<ExpenseListScreen>
         child: SafeArea(
           child: BlocBuilder<ExpenseCubit, ExpenseState>(
             builder: (context, state) {
-              final grouped = context.read<ExpenseCubit>().getGroupedByDate();
+              final filteredExpenses = state.expenses.where((e) {
+                final matchesCategory = _selectedCategory == 'all' || e.category == _selectedCategory;
+                final matchesSearch = _searchQuery.isEmpty ||
+                    (e.note?.toLowerCase().contains(_searchQuery) ?? false) ||
+                    e.category.toLowerCase().contains(_searchQuery);
+                return matchesCategory && matchesSearch;
+              }).toList();
+              final grouped = () {
+                final g = <String, List<dynamic>>{};
+                final now = DateTime.now();
+                final today = DateTime(now.year, now.month, now.day);
+                for (final expense in filteredExpenses) {
+                  final expDate = DateTime(expense.date.year, expense.date.month, expense.date.day);
+                  final diff = today.difference(expDate).inDays;
+                  final key = diff == 0 ? 'Hôm nay' : diff == 1 ? 'Hôm qua' : '$diff ngày trước';
+                  g.putIfAbsent(key, () => []);
+                  g[key]!.add(expense);
+                }
+                return g;
+              }();
 
               return AnimatedBuilder(
                 animation: _entryController,
                 builder: (context, _) {
-                  return CustomScrollView(
+                  return RefreshIndicator(
+                    color: const Color(0xFF4ECDC4),
+                    onRefresh: () async {
+                      context.read<ExpenseCubit>().refresh();
+                      await Future.delayed(const Duration(milliseconds: 500));
+                    },
+                    child: CustomScrollView(
                     physics: const BouncingScrollPhysics(),
                     slivers: [
                       // ═══ Header ═══
@@ -96,7 +127,7 @@ class _ExpenseListScreenState extends State<ExpenseListScreen>
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                                 child: Text(
-                                  '${state.expenses.length} giao dịch',
+                                  '${filteredExpenses.length} giao dịch',
                                   style: const TextStyle(
                                     fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600,
                                     color: Color(0xFF4ECDC4),
@@ -123,6 +154,11 @@ class _ExpenseListScreenState extends State<ExpenseListScreen>
                               ),
                               child: TextField(
                                 controller: _searchController,
+                                onChanged: (value) {
+                                  _debouncer.run(() {
+                                    setState(() => _searchQuery = value.toLowerCase());
+                                  });
+                                },
                                 decoration: InputDecoration(
                                   prefixIcon: Padding(
                                     padding: const EdgeInsets.only(left: 16, right: 8),
@@ -199,11 +235,22 @@ class _ExpenseListScreenState extends State<ExpenseListScreen>
                                     child: const Icon(Icons.receipt_long_rounded, size: 28, color: Color(0xFF4ECDC4)),
                                   ),
                                   const SizedBox(height: 16),
-                                  const Text('Chưa có giao dịch nào', style: TextStyle(
+                                  Container(
+                                    width: 80, height: 80,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: LinearGradient(
+                                        colors: [const Color(0xFF4ECDC4).withValues(alpha: 0.15), const Color(0xFFFF6B6B).withValues(alpha: 0.1)],
+                                      ),
+                                    ),
+                                    child: const Icon(Icons.receipt_long_rounded, size: 36, color: Color(0xFF4ECDC4)),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const Text('Chưa có chi tiêu nào', style: TextStyle(
                                     fontFamily: 'Manrope', fontSize: 18, fontWeight: FontWeight.w700,
                                   )),
                                   const SizedBox(height: 6),
-                                  Text('Thêm chi tiêu đầu tiên ngay!', style: TextStyle(
+                                  Text('Bấm nút + để thêm chi tiêu đầu tiên!', style: TextStyle(
                                     fontFamily: 'Inter', fontSize: 14,
                                     color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
                                   )),
@@ -281,7 +328,8 @@ class _ExpenseListScreenState extends State<ExpenseListScreen>
                       }),
                       const SliverToBoxAdapter(child: SizedBox(height: 100)),
                     ],
-                  );
+                  ),
+                );
                 },
               );
             },
