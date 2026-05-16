@@ -188,7 +188,7 @@ class _SavingsGoalScreenState extends State<SavingsGoalScreen>
                             userId: FirebaseAuth.instance.currentUser?.uid ?? '',
                             name: nameCtrl.text.trim(),
                             targetAmount: target,
-                            icon: selectedIcon.value,
+                            emoji: selectedIcon.value,
                             createdAt: DateTime.now(),
                           ),
                         );

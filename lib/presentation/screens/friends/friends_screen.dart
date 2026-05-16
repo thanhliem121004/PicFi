@@ -423,11 +423,22 @@ class _FriendsScreenState extends State<FriendsScreen>
                                       child: const Icon(Icons.people_alt_rounded, size: 32, color: Color(0xFF4ECDC4)),
                                     ),
                                     const SizedBox(height: 16),
-                                    const Text('Chưa có bạn bè nào', style: TextStyle(
+                                    Container(
+                                      width: 80, height: 80,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        gradient: LinearGradient(
+                                          colors: [const Color(0xFF4ECDC4).withValues(alpha: 0.15), const Color(0xFFFF6B6B).withValues(alpha: 0.1)],
+                                        ),
+                                      ),
+                                      child: const Icon(Icons.people_alt_rounded, size: 36, color: Color(0xFF4ECDC4)),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const Text('Kết bạn để cùng nhau tiết kiệm', style: TextStyle(
                                       fontFamily: 'Manrope', fontSize: 18, fontWeight: FontWeight.w700,
                                     )),
                                     const SizedBox(height: 6),
-                                    Text('Chia sẻ PicFi ID để thêm bạn bè!', style: TextStyle(
+                                    Text('Thêm bạn bè bằng PicFi ID!', style: TextStyle(
                                       fontFamily: 'Inter', fontSize: 14,
                                       color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
                                     )),

@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../../core/services/notification_service.dart';
 
 // ═══════════ STATE ═══════════
@@ -197,9 +198,21 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> signInWithGoogle() async {
     emit(state.copyWith(isLoading: true, error: null));
     try {
-      emit(state.copyWith(isLoading: false, error: 'Google Sign-In chưa được cấu hình SHA-1'));
+      final googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        emit(state.copyWith(isLoading: false));
+        return;
+      }
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await _auth.signInWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      emit(state.copyWith(isLoading: false, error: 'Lỗi đăng nhập Google: ${e.message}'));
     } catch (e) {
-      emit(state.copyWith(isLoading: false, error: e.toString()));
+      emit(state.copyWith(isLoading: false, error: 'Lỗi: $e'));
     }
   }
 

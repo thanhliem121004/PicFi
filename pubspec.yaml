@@ -44,6 +44,17 @@ dependencies:
   share_plus: ^10.1.4
   timeago: ^3.7.0
 
+  # Export
+  csv: ^6.0.0
+  excel: ^4.0.6
+  pdf: ^3.11.1
+  printing: ^5.13.4
+
+  # Security
+  encrypt: ^5.0.3
+  flutter_secure_storage: ^9.2.4
+  local_auth: ^2.3.0
+
   # Local Storage
   shared_preferences: ^2.5.3
   hive: ^2.2.3

@@ -1,7 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:local_auth/local_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LockState extends Equatable {
   final bool isLocked;
@@ -35,38 +34,39 @@ class LockState extends Equatable {
 }
 
 class LockCubit extends Cubit<LockState> {
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
-  final LocalAuthentication _auth = LocalAuthentication();
-
   LockCubit() : super(const LockState()) {
     _init();
   }
 
   Future<void> _init() async {
-    final pin = await _storage.read(key: 'app_pin');
-    final bioStr = await _storage.read(key: 'use_biometric');
+    final prefs = await SharedPreferences.getInstance();
+    final pin = prefs.getString('app_pin');
+    final bioStr = prefs.getBool('use_biometric') ?? false;
     emit(state.copyWith(
-      isEnabled: pin != null,
-      useBiometric: bioStr == 'true',
+      isEnabled: pin != null && pin.isNotEmpty,
+      useBiometric: bioStr,
       isLoading: false,
     ));
   }
 
   Future<bool> setPin(String pin) async {
     if (pin.length < 4) return false;
-    await _storage.write(key: 'app_pin', value: pin);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_pin', pin);
     emit(state.copyWith(isEnabled: true, isLocked: true));
     return true;
   }
 
   Future<void> removePin() async {
-    await _storage.delete(key: 'app_pin');
-    await _storage.delete(key: 'use_biometric');
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('app_pin');
+    await prefs.remove('use_biometric');
     emit(state.copyWith(isEnabled: false, useBiometric: false, isLocked: false));
   }
 
   Future<void> toggleBiometric(bool value) async {
-    await _storage.write(key: 'use_biometric', value: value.toString());
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('use_biometric', value);
     emit(state.copyWith(useBiometric: value));
   }
 
@@ -75,27 +75,12 @@ class LockCubit extends Cubit<LockState> {
       emit(state.copyWith(isLocked: false));
       return true;
     }
-
-    if (state.useBiometric) {
-      try {
-        final canCheck = await _auth.canCheckBiometrics;
-        if (canCheck) {
-          final result = await _auth.authenticate(
-            localizedReason: 'Mở khóa PicFi',
-            options: const AuthenticationOptions(useErrorDialogs: true, stickyAuth: true),
-          );
-          if (result) {
-            emit(state.copyWith(isLocked: false));
-            return true;
-          }
-        }
-      } catch (_) {}
-    }
     return false;
   }
 
   Future<bool> verifyPin(String pin) async {
-    final stored = await _storage.read(key: 'app_pin');
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString('app_pin');
     if (stored == pin) {
       emit(state.copyWith(isLocked: false));
       return true;

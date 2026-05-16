@@ -1,15 +1,9 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
-import 'package:csv/csv.dart';
-import 'package:excel/excel.dart' hide Border;
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import '../../../core/constants/expense_categories.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../blocs/expense/expense_cubit.dart';
@@ -25,279 +19,37 @@ class ReportScreen extends StatefulWidget {
 class _ReportScreenState extends State<ReportScreen> {
   int _selectedMonth = DateTime.now().month;
   int _selectedYear = DateTime.now().year;
-  bool _isGeneratingPdf = false;
 
-  String _generateCsv(List<ExpenseEntity> expenses, List<ExpenseEntity> incomes) {
-    final rows = <List<String>>[
-      ['Ngày', 'Danh mục', 'Loại', 'Ghi chú', 'Số tiền'],
-    ];
-    for (final e in [...expenses, ...incomes]) {
-      final cat = ExpenseCategory.values.firstWhere(
-        (c) => c.name == e.category,
-        orElse: () => ExpenseCategory.other,
-      );
-      rows.add([
-        DateFormat('dd/MM/yyyy').format(e.date),
-        cat.label,
-        e.type == TransactionType.income ? 'Thu nhập' : 'Chi tiêu',
-        e.note ?? '-',
-        '${e.type == TransactionType.income ? '+' : '-'}${CurrencyFormatter.format(e.amount)}',
-      ]);
-    }
-    return const ListToCsvConverter().convert(rows);
-  }
-
-  Future<File> _generateExcel(List<ExpenseEntity> expenses, List<ExpenseEntity> incomes) async {
-    final excel = Excel.createExcel();
-    final sheet = excel['Báo cáo'];
-
-    sheet.appendRow([
-      TextCellValue('Ngày'),
-      TextCellValue('Danh mục'),
-      TextCellValue('Loại'),
-      TextCellValue('Ghi chú'),
-      TextCellValue('Số tiền'),
-    ]);
-    for (final e in [...expenses, ...incomes]) {
-      final cat = ExpenseCategory.values.firstWhere(
-        (c) => c.name == e.category,
-        orElse: () => ExpenseCategory.other,
-      );
-      sheet.appendRow([
-        TextCellValue(DateFormat('dd/MM/yyyy').format(e.date)),
-        TextCellValue(cat.label),
-        TextCellValue(e.type == TransactionType.income ? 'Thu nhập' : 'Chi tiêu'),
-        TextCellValue(e.note ?? '-'),
-        TextCellValue('${e.type == TransactionType.income ? '+' : '-'}${CurrencyFormatter.format(e.amount)}'),
-      ]);
-    }
-
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/BaoCaoPicFi_$_selectedMonth$_selectedYear.xlsx');
-    await file.writeAsBytes(excel.save()!);
-    return file;
-  }
-
-  Future<void> _exportCsv(List<ExpenseEntity> expenses, List<ExpenseEntity> incomes) async {
-    final messenger = ScaffoldMessenger.of(context);
-    setState(() => _isGeneratingPdf = true);
-    await HapticFeedback.lightImpact();
-    try {
-      final csv = _generateCsv(expenses, incomes);
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/BaoCaoPicFi_$_selectedMonth$_selectedYear.csv');
-      await file.writeAsString(csv);
-      await Share.shareXFiles([XFile(file.path)]);
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(
-        content: Text('Lỗi xuất CSV: $e', style: const TextStyle(fontFamily: 'Inter')),
-        backgroundColor: const Color(0xFFFF6B6B),
-        behavior: SnackBarBehavior.floating,
-      ));
-    } finally {
-      if (mounted) setState(() => _isGeneratingPdf = false);
-    }
-  }
-
-  Future<void> _exportExcel(List<ExpenseEntity> expenses, List<ExpenseEntity> incomes) async {
-    final messenger = ScaffoldMessenger.of(context);
-    setState(() => _isGeneratingPdf = true);
-    await HapticFeedback.lightImpact();
-    try {
-      final file = await _generateExcel(expenses, incomes);
-      await Share.shareXFiles([XFile(file.path)]);
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(
-        content: Text('Lỗi xuất Excel: $e', style: const TextStyle(fontFamily: 'Inter')),
-        backgroundColor: const Color(0xFFFF6B6B),
-        behavior: SnackBarBehavior.floating,
-      ));
-    } finally {
-      if (mounted) setState(() => _isGeneratingPdf = false);
-    }
-  }
-
-  Future<pw.Document> _generatePdf(List<ExpenseEntity> expenses, List<ExpenseEntity> incomes) async {
-    final pdf = pw.Document();
-
-    final totalIncome = incomes.fold<double>(0, (s, e) => s + e.amount);
+  Future<void> _exportSummary(List<ExpenseEntity> expenses) async {
     final totalExpense = expenses.fold<double>(0, (s, e) => s + e.amount);
-    final balance = totalIncome - totalExpense;
     final monthName = DateFormat('MMMM yyyy', 'vi').format(DateTime(_selectedYear, _selectedMonth));
+
+    final buffer = StringBuffer();
+    buffer.writeln('Báo cáo chi tiêu PicFi — $monthName');
+    buffer.writeln('Tổng chi: ${CurrencyFormatter.format(totalExpense)}');
+    buffer.writeln('');
 
     final categoryStats = <String, double>{};
     for (final e in expenses) {
       categoryStats[e.category] = (categoryStats[e.category] ?? 0) + e.amount;
     }
-    final sortedCategories = categoryStats.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final sorted = categoryStats.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
 
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        header: (context) => pw.Center(
-          child: pw.Text(
-            'Báo cáo chi tiêu PicFi — $monthName',
-            style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#006A65')),
-          ),
-        ),
-        footer: (context) => pw.Center(
-          child: pw.Text(
-            'Tạo bởi PicFi — ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
-            style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey),
-          ),
-        ),
-        build: (context) => [
-          // Tổng quan
-          pw.Container(
-            padding: const pw.EdgeInsets.all(16),
-            decoration: pw.BoxDecoration(
-              color: PdfColor.fromHex('#F0FBF9'),
-              borderRadius: pw.BorderRadius.circular(12),
-            ),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
-              children: [
-                _pdfStatBox('Tổng thu', totalIncome, PdfColor.fromHex('#4ECDC4')),
-                _pdfStatBox('Tổng chi', totalExpense, PdfColor.fromHex('#FF6B6B')),
-                _pdfStatBox('Số dư', balance, balance >= 0 ? PdfColor.fromHex('#006A65') : PdfColor.fromHex('#FF6B6B')),
-              ],
-            ),
-          ),
-          pw.SizedBox(height: 16),
+    for (final entry in sorted) {
+      final cat = ExpenseCategory.values.firstWhere(
+        (c) => c.name == entry.key,
+        orElse: () => ExpenseCategory.other,
+      );
+      buffer.writeln('${cat.label}: ${CurrencyFormatter.format(entry.value)}');
+    }
 
-          // Biểu đồ danh mục
-          pw.Text('Chi tiêu theo danh mục', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 8),
-          ...sortedCategories.map((entry) {
-            final cat = ExpenseCategory.values.firstWhere(
-              (c) => c.name == entry.key,
-              orElse: () => ExpenseCategory.other,
-            );
-            final pct = totalExpense > 0 ? (entry.value / totalExpense * 100).toStringAsFixed(1) : '0';
-            return pw.Padding(
-              padding: const pw.EdgeInsets.only(bottom: 6),
-              child: pw.Row(
-                children: [
-                  pw.Container(
-                    width: 12, height: 12,
-                    decoration: pw.BoxDecoration(
-                      color: PdfColor.fromInt(cat.color.toARGB32()),
-                      shape: pw.BoxShape.circle,
-                    ),
-                  ),
-                  pw.SizedBox(width: 8),
-                  pw.Text(cat.label, style: const pw.TextStyle(fontSize: 11)),
-                  pw.Spacer(),
-                  pw.Text('$pct%', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
-                  pw.SizedBox(width: 8),
-                  pw.Text(CurrencyFormatter.format(entry.value), style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
-                ],
-              ),
-            );
-          }),
-          pw.SizedBox(height: 16),
+    buffer.writeln('');
+    buffer.writeln('Tạo bởi PicFi — ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}');
 
-          // Chi tiết giao dịch
-          pw.Text('Chi tiết giao dịch', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 8),
-          pw.TableHelper.fromTextArray(
-            border: pw.TableBorder.all(color: PdfColors.grey300),
-            headerDecoration: pw.BoxDecoration(color: PdfColor.fromHex('#006A65')),
-            headerStyle: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 10),
-            cellStyle: const pw.TextStyle(fontSize: 9),
-            headerHeight: 25,
-            cellHeight: 22,
-            headers: ['Ngày', 'Danh mục', 'Ghi chú', 'Số tiền'],
-            data: expenses.map((e) {
-              final cat = ExpenseCategory.values.firstWhere(
-                (c) => c.name == e.category,
-                orElse: () => ExpenseCategory.other,
-              );
-              return [
-                DateFormat('dd/MM').format(e.date),
-                cat.label,
-                e.note ?? '-',
-                '-${CurrencyFormatter.format(e.amount)}',
-              ];
-            }).toList(),
-          ),
-          if (incomes.isNotEmpty) ...[
-            pw.SizedBox(height: 12),
-            pw.Text('Chi tiết thu nhập', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 8),
-            pw.TableHelper.fromTextArray(
-              border: pw.TableBorder.all(color: PdfColors.grey300),
-              headerDecoration: pw.BoxDecoration(color: PdfColor.fromHex('#4ECDC4')),
-              headerStyle: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 10),
-              cellStyle: const pw.TextStyle(fontSize: 9),
-              headerHeight: 25,
-              cellHeight: 22,
-              headers: ['Ngày', 'Danh mục', 'Ghi chú', 'Số tiền'],
-              data: incomes.map((e) {
-                final cat = ExpenseCategory.values.firstWhere(
-                  (c) => c.name == e.category,
-                  orElse: () => ExpenseCategory.other,
-                );
-                return [
-                  DateFormat('dd/MM').format(e.date),
-                  cat.label,
-                  e.note ?? '-',
-                  '+${CurrencyFormatter.format(e.amount)}',
-                ];
-              }).toList(),
-            ),
-          ],
-        ],
-      ),
-    );
-
-    return pdf;
-  }
-
-  Widget _exportButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    required bool isLoading,
-  }) {
-    return GestureDetector(
-      onTap: isLoading ? null : onTap,
-      child: Container(
-        height: 50,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [Color(0xFF006A65), Color(0xFF4ECDC4)]),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: const Color(0xFF006A65).withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
-        ),
-        child: isLoading
-            ? const SizedBox(
-                width: 22, height: 22,
-                child: Center(child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)),
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, size: 18, color: Colors.white),
-                  const SizedBox(width: 6),
-                  Text(label, style: const TextStyle(fontFamily: 'Manrope', fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
-                ],
-              ),
-      ),
-    );
-  }
-
-  pw.Widget _pdfStatBox(String label, double value, PdfColor color) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(label, style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
-        pw.SizedBox(height: 4),
-        pw.Text(
-          CurrencyFormatter.format(value),
-          style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: color),
-        ),
-      ],
-    );
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/BaoCaoPicFi_$_selectedMonth$_selectedYear.txt');
+    await file.writeAsString(buffer.toString());
+    await Share.shareXFiles([XFile(file.path)], text: 'Báo cáo chi tiêu PicFi');
   }
 
   @override
@@ -366,33 +118,22 @@ class _ReportScreenState extends State<ReportScreen> {
                 child: BlocBuilder<ExpenseCubit, ExpenseState>(
                   builder: (context, state) {
                     final expenses = state.expenses.where((e) =>
-                        e.type == TransactionType.expense &&
-                        e.date.month == _selectedMonth &&
-                        e.date.year == _selectedYear).toList();
-
-                    final incomes = state.expenses.where((e) =>
-                        e.type == TransactionType.income &&
                         e.date.month == _selectedMonth &&
                         e.date.year == _selectedYear).toList();
 
                     final totalExpense = expenses.fold<double>(0, (s, e) => s + e.amount);
-                    final totalIncome = incomes.fold<double>(0, (s, e) => s + e.amount);
 
                     return ListView(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       children: [
-                        _SummaryCard(label: 'Tổng thu', value: totalIncome, color: const Color(0xFF4ECDC4)),
-                        const SizedBox(height: 12),
                         _SummaryCard(label: 'Tổng chi', value: totalExpense, color: const Color(0xFFFF6B6B)),
-                        const SizedBox(height: 12),
-                        _SummaryCard(label: 'Số dư', value: totalIncome - totalExpense, color: const Color(0xFF006A65)),
                         const SizedBox(height: 20),
 
                         const Text('Giao dịch trong tháng', style: TextStyle(
                           fontFamily: 'Manrope', fontSize: 16, fontWeight: FontWeight.w700,
                         )),
                         const SizedBox(height: 8),
-                        if (expenses.isEmpty && incomes.isEmpty)
+                        if (expenses.isEmpty)
                           Center(
                             child: Padding(
                               padding: const EdgeInsets.symmetric(vertical: 40),
@@ -431,15 +172,10 @@ class _ReportScreenState extends State<ReportScreen> {
                 child: BlocBuilder<ExpenseCubit, ExpenseState>(
                   builder: (context, state) {
                     final expenses = state.expenses.where((e) =>
-                        e.type == TransactionType.expense &&
-                        e.date.month == _selectedMonth &&
-                        e.date.year == _selectedYear).toList();
-                    final incomes = state.expenses.where((e) =>
-                        e.type == TransactionType.income &&
                         e.date.month == _selectedMonth &&
                         e.date.year == _selectedYear).toList();
 
-                    if (expenses.isEmpty && incomes.isEmpty) {
+                    if (expenses.isEmpty) {
                       return Container(
                         height: 50,
                         decoration: BoxDecoration(
@@ -450,49 +186,14 @@ class _ReportScreenState extends State<ReportScreen> {
                       );
                     }
 
-                    return Row(
-                      children: [
-                        Expanded(child: _exportButton(
-                          icon: Icons.table_chart_outlined,
-                          label: 'CSV',
-                          onTap: () => _exportCsv(expenses, incomes),
-                          isLoading: _isGeneratingPdf,
-                        )),
-                        const SizedBox(width: 12),
-                        Expanded(child: _exportButton(
-                          icon: Icons.grid_on_rounded,
-                          label: 'Excel',
-                          onTap: () => _exportExcel(expenses, incomes),
-                          isLoading: _isGeneratingPdf,
-                        )),
-                        const SizedBox(width: 12),
-                        Expanded(child: _exportButton(
-                          icon: Icons.picture_as_pdf_rounded,
-                          label: 'PDF',
-                          onTap: () async {
-                            if (_isGeneratingPdf) return;
-                            setState(() => _isGeneratingPdf = true);
-                            await HapticFeedback.lightImpact();
-                            try {
-                              final pdf = await _generatePdf(expenses, incomes);
-                              await Printing.layoutPdf(
-                                onLayout: (format) async => pdf.save(),
-                                name: 'BaoCaoPicFi_$_selectedMonth$_selectedYear.pdf',
-                              );
-                            } catch (e) {
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Text('Lỗi xuất PDF: $e', style: const TextStyle(fontFamily: 'Inter')),
-                                backgroundColor: const Color(0xFFFF6B6B),
-                                behavior: SnackBarBehavior.floating,
-                              ));
-                            } finally {
-                              if (mounted) setState(() => _isGeneratingPdf = false);
-                            }
-                          },
-                          isLoading: _isGeneratingPdf,
-                        )),
-                      ],
+                    return SizedBox(
+                      width: double.infinity,
+                      child: _exportButton(
+                        icon: Icons.share_rounded,
+                        label: 'Xuất báo cáo',
+                        onTap: () => _exportSummary(expenses),
+                        isLoading: false,
+                      ),
                     );
                   },
                 ),
@@ -636,4 +337,36 @@ class _MonthYearPicker extends StatelessWidget {
       ],
     );
   }
+}
+
+Widget _exportButton({
+  required IconData icon,
+  required String label,
+  required VoidCallback onTap,
+  required bool isLoading,
+}) {
+  return GestureDetector(
+    onTap: isLoading ? null : onTap,
+    child: Container(
+      height: 50,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFF006A65), Color(0xFF4ECDC4)]),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: const Color(0xFF006A65).withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
+      ),
+      child: isLoading
+          ? const SizedBox(
+              width: 22, height: 22,
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)),
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 18, color: Colors.white),
+                const SizedBox(width: 6),
+                Text(label, style: const TextStyle(fontFamily: 'Manrope', fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
+              ],
+            ),
+    ),
+  );
 }

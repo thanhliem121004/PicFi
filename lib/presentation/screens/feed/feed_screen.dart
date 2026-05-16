@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,6 +7,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/expense_categories.dart';
 import '../../../core/utils/currency_formatter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/shimmer_loading.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -127,9 +129,17 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                           .snapshots(),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator(
-                            color: Color(0xFF4ECDC4),
-                          ));
+                          return ShimmerLoading(
+                            child: ListView.builder(
+                              physics: const NeverScrollableScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                              itemCount: 4,
+                              itemBuilder: (_, __) => Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: ShimmerPlaceholder(height: 340, borderRadius: 24),
+                              ),
+                            ),
+                          );
                         }
 
                         final docs = snapshot.data?.docs ?? [];
@@ -188,7 +198,12 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                           );
                         }
 
-                        return ListView.builder(
+                        return RefreshIndicator(
+                          color: const Color(0xFF4ECDC4),
+                          onRefresh: () async {
+                            await Future.delayed(const Duration(milliseconds: 500));
+                          },
+                          child: ListView.builder(
                           physics: const BouncingScrollPhysics(),
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                           itemCount: docs.length,
@@ -208,6 +223,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                               ),
                             );
                           },
+                        ),
                         );
                       },
                     ),
@@ -236,6 +252,38 @@ class _FeedCard extends StatefulWidget {
 
 class _FeedCardState extends State<_FeedCard> {
   bool _liked = false;
+  bool _fired = false;
+  int _fireCount = 0;
+  StreamSubscription? _reactionsSub;
+
+  @override
+  void initState() {
+    super.initState();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      _reactionsSub = FirebaseFirestore.instance
+          .collection('feed')
+          .doc(widget.docId)
+          .collection('reactions')
+          .snapshots()
+          .listen((snapshot) {
+        if (!mounted) return;
+        final docs = snapshot.docs;
+        final count = docs.length;
+        final hasFired = docs.any((d) => d.id == uid);
+        setState(() {
+          _fireCount = count;
+          _fired = hasFired;
+        });
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _reactionsSub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -461,34 +509,51 @@ class _FeedCardState extends State<_FeedCard> {
                           color: const Color(0xFF4ECDC4),
                           onTap: () {
                             HapticFeedback.lightImpact();
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: const Text('Tính năng bình luận sắp ra mắt! 💬', style: TextStyle(fontFamily: 'Inter')),
-                              backgroundColor: const Color(0xFF4ECDC4),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ));
+                            _showCommentSheet(context, widget.docId);
                           },
                         ),
                         const Spacer(),
                         // Fire reaction
                         GestureDetector(
-                          onTap: () {
+                          onTap: () async {
                             HapticFeedback.mediumImpact();
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: const Text('🔥🔥🔥', style: TextStyle(fontSize: 20)),
-                              backgroundColor: const Color(0xFFF0B27A),
-                              behavior: SnackBarBehavior.floating,
-                              duration: const Duration(milliseconds: 800),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ));
+                            final uid = FirebaseAuth.instance.currentUser?.uid;
+                            if (uid == null) return;
+                            final ref = FirebaseFirestore.instance
+                                .collection('feed')
+                                .doc(widget.docId)
+                                .collection('reactions')
+                                .doc(uid);
+                            if (_fired) {
+                              await ref.delete();
+                            } else {
+                              await ref.set({
+                                'emoji': '🔥',
+                                'createdAt': FieldValue.serverTimestamp(),
+                              });
+                            }
                           },
                           child: Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF0B27A).withValues(alpha: 0.1),
+                              color: _fired
+                                  ? const Color(0xFFF0B27A).withValues(alpha: 0.25)
+                                  : const Color(0xFFF0B27A).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Text('🔥', style: TextStyle(fontSize: 18)),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('🔥', style: TextStyle(fontSize: 18)),
+                                if (_fireCount > 0) ...[
+                                  const SizedBox(width: 4),
+                                  Text('$_fireCount', style: TextStyle(
+                                    fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600,
+                                    color: _fired ? const Color(0xFFF0B27A) : AppColors.onSurfaceVariant,
+                                  )),
+                                ],
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -500,6 +565,159 @@ class _FeedCardState extends State<_FeedCard> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showCommentSheet(BuildContext context, String postId) {
+    final commentCtrl = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          height: MediaQuery.of(ctx).size.height * 0.6,
+          padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            children: [
+              Container(width: 40, height: 4, decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              )),
+              const SizedBox(height: 16),
+              const Text('Bình luận', style: TextStyle(
+                fontFamily: 'Manrope', fontSize: 18, fontWeight: FontWeight.w700,
+              )),
+              const SizedBox(height: 16),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('feed')
+                      .doc(postId)
+                      .collection('comments')
+                      .orderBy('createdAt', descending: true)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+                    }
+                    final comments = snapshot.data?.docs ?? [];
+                    if (comments.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.chat_bubble_outline_rounded, size: 48, color: Colors.grey.shade300),
+                            const SizedBox(height: 12),
+                            Text('Chưa có bình luận nào', style: TextStyle(
+                              fontFamily: 'Inter', fontSize: 15,
+                              color: Colors.grey.shade500,
+                            )),
+                          ],
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      itemCount: comments.length,
+                      separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey.shade100),
+                      itemBuilder: (context, index) {
+                        final data = comments[index].data() as Map<String, dynamic>;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 36, height: 36,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: const Color(0xFF4ECDC4).withValues(alpha: 0.15),
+                                ),
+                                child: const Icon(Icons.person_rounded, size: 20, color: Color(0xFF4ECDC4)),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      data['userName'] ?? 'Ai đó',
+                                      style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      data['text'] ?? '',
+                                      style: const TextStyle(fontFamily: 'Inter', fontSize: 14),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF7F9F8),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: TextField(
+                        controller: commentCtrl,
+                        decoration: InputDecoration(
+                          hintText: 'Viết bình luận...',
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          hintStyle: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Colors.grey.shade400),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () async {
+                      final text = commentCtrl.text.trim();
+                      if (text.isEmpty) return;
+                      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+                      final userName = widget.data['userName'] as String? ?? 'Ai đó';
+                      await FirebaseFirestore.instance
+                          .collection('feed')
+                          .doc(postId)
+                          .collection('comments')
+                          .add({
+                        'userId': uid,
+                        'userName': userName,
+                        'text': text,
+                        'createdAt': FieldValue.serverTimestamp(),
+                      });
+                      commentCtrl.clear();
+                    },
+                    child: Container(
+                      width: 44, height: 44,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [Color(0xFF006A65), Color(0xFF4ECDC4)]),
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: const Icon(Icons.send_rounded, size: 20, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

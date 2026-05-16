@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart' hide LockState;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:local_auth/local_auth.dart';
 import '../../blocs/lock/lock_cubit.dart';
 
 class LockSettingsScreen extends StatefulWidget {
@@ -16,7 +15,6 @@ class _LockSettingsScreenState extends State<LockSettingsScreen>
   late AnimationController _entryController;
   late Animation<double> _fadeIn;
   late Animation<double> _slideUp;
-  bool _canCheckBiometrics = false;
 
   @override
   void initState() {
@@ -31,12 +29,6 @@ class _LockSettingsScreenState extends State<LockSettingsScreen>
       CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
     );
     _entryController.forward();
-    _checkBiometrics();
-  }
-
-  Future<void> _checkBiometrics() async {
-    final can = await LocalAuthentication().canCheckBiometrics;
-    if (mounted) setState(() => _canCheckBiometrics = can);
   }
 
   @override
@@ -131,7 +123,7 @@ class _LockSettingsScreenState extends State<LockSettingsScreen>
                                       }
                                     },
                                   ),
-                                  if (s.isEnabled && _canCheckBiometrics)
+                                  if (s.isEnabled)
                                     SwitchListTile(
                                       title: const Text('Face ID / Vân tay', style: TextStyle(fontFamily: 'Inter', fontSize: 16)),
                                       subtitle: const Text('Mở khóa nhanh bằng sinh trắc học'),

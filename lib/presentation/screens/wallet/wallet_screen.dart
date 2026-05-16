@@ -203,7 +203,7 @@ class _WalletScreenState extends State<WalletScreen>
                             userId: FirebaseAuth.instance.currentUser?.uid ?? '',
                             name: nameCtrl.text.trim(),
                             icon: iconCtrl.text,
-                            colorValue: selectedColor.toARGB32(),
+                            color: selectedColor.toARGB32(),
                             createdAt: DateTime.now(),
                           ));
                         }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 
@@ -97,8 +98,15 @@ class _SplashScreenState extends State<SplashScreen>
 
     _mainController.forward();
 
-    Future.delayed(const Duration(milliseconds: 3200), () {
-      if (mounted) context.go('/onboarding');
+    Future.delayed(const Duration(milliseconds: 3200), () async {
+      if (!mounted) return;
+      final prefs = await SharedPreferences.getInstance();
+      final hasSeen = prefs.getBool('hasSeenOnboarding') ?? false;
+      if (hasSeen) {
+        context.go('/login');
+      } else {
+        context.go('/onboarding');
+      }
     });
   }
 
