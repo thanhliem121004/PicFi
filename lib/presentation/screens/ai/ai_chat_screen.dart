@@ -3,8 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/expense_categories.dart';
-import '../../../core/constants/app_strings.dart';
 import '../../blocs/ai/ai_cubit.dart';
 import '../../blocs/premium/premium_cubit.dart';
 
@@ -48,21 +46,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
     _textController.clear();
     context.read<AICubit>().sendMessage(text);
     _scrollToBottom();
-  }
-
-  void _showPremiumRequired() {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: const Text('Tính năng này yêu cầu gói Premium'),
-      backgroundColor: const Color(0xFFFF6B6B),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      action: SnackBarAction(
-        label: 'Nâng cấp',
-        textColor: Colors.white,
-        onPressed: () => context.push('/premium'),
-      ),
-    ));
   }
 
   @override

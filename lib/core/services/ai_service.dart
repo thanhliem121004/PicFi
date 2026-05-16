@@ -1,5 +1,4 @@
 import 'dart:math';
-import '../../core/constants/app_strings.dart';
 import '../../core/constants/expense_categories.dart';
 
 class AIService {

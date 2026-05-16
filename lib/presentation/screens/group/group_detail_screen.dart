@@ -298,8 +298,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                                       ),
                                       child: Center(
                                         child: Text(
-                                          member.displayName.isNotEmpty
-                                              ? member.displayName[0].toUpperCase()
+                                          (member.displayName ?? '').isNotEmpty
+                                              ? (member.displayName ?? '')[0].toUpperCase()
                                               : '?',
                                           style: const TextStyle(
                                             fontFamily: 'Manrope', fontSize: 16, fontWeight: FontWeight.w700,
@@ -313,7 +313,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(member.displayName, style: const TextStyle(
+                                          Text(member.displayName ?? 'Unknown', style: const TextStyle(
                                             fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600,
                                           )),
                                           Text(

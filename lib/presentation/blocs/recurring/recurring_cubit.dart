@@ -81,9 +81,10 @@ class RecurringCubit extends Cubit<RecurringState> {
   Future<void> _checkDue() async {
     if (_uid == null) return;
     final now = DateTime.now();
-    final dueItems = state.recurringExpenses.where((r) =>
-      r.isActive && r.nextDueDate.isBefore(now) || r.nextDueDate.isAtSameMomentAs(now)
-    );
+    final dueItems = state.recurringExpenses.where((r) {
+      if (!r.isActive || r.nextDueDate == null) return false;
+      return r.nextDueDate!.isBefore(now) || r.nextDueDate!.isAtSameMomentAs(now);
+    });
     for (final item in dueItems) {
       await _firestore.collection('users').doc(_uid).collection('expenses').add({
         'amount': item.amount,

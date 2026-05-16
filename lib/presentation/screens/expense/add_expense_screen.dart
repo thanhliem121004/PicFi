@@ -6,13 +6,16 @@ import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/expense_categories.dart';
 import '../../../domain/entities/expense_entity.dart';
 import '../../blocs/expense/expense_cubit.dart';
 
 class AddExpenseScreen extends StatefulWidget {
-  const AddExpenseScreen({super.key});
+  final ExpenseEntity? existingExpense;
+
+  const AddExpenseScreen({super.key, this.existingExpense});
 
   @override
   State<AddExpenseScreen> createState() => _AddExpenseScreenState();
@@ -700,8 +703,20 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                                     final uid = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
                                     final ref = FirebaseStorage.instance
                                         .ref('expenses/$uid/${DateTime.now().millisecondsSinceEpoch}.jpg');
-                                    await ref.putFile(_pickedImage!);
+                                    final compressedPath = '${_pickedImage!.path}_compressed.jpg';
+                                    final result = await FlutterImageCompress.compressAndGetFile(
+                                      _pickedImage!.path,
+                                      compressedPath,
+                                      quality: 70,
+                                      minWidth: 1200,
+                                      minHeight: 1200,
+                                    );
+                                    final fileToUpload = result != null ? File(result.path) : _pickedImage!;
+                                    await ref.putFile(fileToUpload);
                                     imageUrl = await ref.getDownloadURL();
+                                    if (result != null && result.path != _pickedImage!.path) {
+                                      File(result.path).delete();
+                                    }
                                   } catch (e) {
                                     // Continue without image
                                   }

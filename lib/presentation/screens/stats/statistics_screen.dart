@@ -317,12 +317,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                                     height: 160,
                                     child: BarChart(
                                       BarChartData(
-                                        barGroups: [
-                                          _makeBar(0, 3, const Color(0xFF4ECDC4)),
-                                          _makeBar(1, 5, const Color(0xFF9B59B6)),
-                                          _makeBar(2, 8, const Color(0xFFFF6B6B), highlighted: true),
-                                          _makeBar(3, 4, const Color(0xFFF0B27A)),
-                                        ],
+                                        barGroups: _computeWeeklyBars(state.expenses),
                                         titlesData: FlTitlesData(
                                           leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                                           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -331,17 +326,14 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                                             sideTitles: SideTitles(
                                               showTitles: true,
                                               getTitlesWidget: (value, meta) {
-                                                final labels = ['T1', 'T2', 'T3', 'T4'];
-                                                final colors = [
-                                                  const Color(0xFF4ECDC4), const Color(0xFF9B59B6),
-                                                  const Color(0xFFFF6B6B), const Color(0xFFF0B27A),
-                                                ];
+                                                final labels = _barLabels;
+                                                final colors = _barColors;
                                                 return SideTitleWidget(
                                                   meta: meta,
-                                                  child: Text(labels[value.toInt()], style: TextStyle(
+                                                  child: Text(labels[value.toInt() % labels.length], style: TextStyle(
                                                     fontFamily: 'Inter', fontSize: 13,
                                                     fontWeight: FontWeight.w600,
-                                                    color: colors[value.toInt()],
+                                                    color: colors[value.toInt() % colors.length],
                                                   )),
                                                 );
                                               },
@@ -485,6 +477,42 @@ class _StatisticsScreenState extends State<StatisticsScreen>
         ),
       ),
     );
+  }
+
+  static const _barLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+  static const _barColors = [
+    Color(0xFF4ECDC4), Color(0xFF9B59B6), Color(0xFFFF6B6B), Color(0xFFF0B27A),
+    Color(0xFF45B7D1), Color(0xFF006A65), Color(0xFF6C5CE7),
+  ];
+
+  List<BarChartGroupData> _computeWeeklyBars(List<dynamic> expenses) {
+    final now = DateTime.now();
+    final weekday = now.weekday; // 1=Mon ... 7=Sun
+    final monday = now.subtract(Duration(days: weekday - 1));
+    final mondayStart = DateTime(monday.year, monday.month, monday.day);
+    final sundayEnd = mondayStart.add(const Duration(days: 7));
+
+    final dayTotals = List.filled(7, 0.0);
+    int maxVal = 0;
+
+    for (final expense in expenses) {
+      final d = expense.date;
+      if (d.isBefore(mondayStart) || d.isAfter(sundayEnd)) continue;
+      final dayIndex = d.weekday - 1; // Mon=0 ... Sun=6
+      dayTotals[dayIndex] += (expense.amount as num).toDouble();
+    }
+
+    for (final v in dayTotals) {
+      if (v > maxVal) maxVal = v.toInt();
+    }
+
+    final scale = maxVal > 0 ? maxVal / 8.0 : 1.0;
+
+    return List.generate(7, (i) {
+      final val = dayTotals[i] / scale;
+      final isMax = dayTotals[i] >= maxVal && maxVal > 0;
+      return _makeBar(i, val > 0 ? val : 0.5, _barColors[i], highlighted: isMax);
+    });
   }
 
   BarChartGroupData _makeBar(int x, double y, Color color, {bool highlighted = false}) {

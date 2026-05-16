@@ -264,10 +264,13 @@ class ExpenseDetailScreen extends StatelessWidget {
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: _GradientActionButton(
+                            child:                           _GradientActionButton(
                               icon: Icons.edit_rounded,
                               label: AppStrings.edit,
-                              onTap: () {},
+                              onTap: () {
+                                HapticFeedback.mediumImpact();
+                                context.push('/add-expense', extra: expense);
+                              },
                             ),
                           ),
                         ],
