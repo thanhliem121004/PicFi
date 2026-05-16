@@ -9,12 +9,18 @@ import '../../presentation/screens/expense/expense_detail_screen.dart';
 import '../../presentation/screens/friends/friends_screen.dart';
 import '../../presentation/screens/friends/chat_screen.dart';
 import '../../presentation/screens/expense/expense_list_screen.dart';
+import '../../presentation/screens/premium/premium_screen.dart';
+import '../../presentation/screens/ai/ai_chat_screen.dart';
+import '../../presentation/screens/ai/ocr_scanner_screen.dart';
+import '../../presentation/screens/analytics/advanced_analytics_screen.dart';
+import '../../presentation/screens/profile/profile_screen.dart';
 
 class AppRouter {
   AppRouter._();
 
   static final router = GoRouter(
     initialLocation: '/',
+    debugLogDiagnostics: true,
     routes: [
       GoRoute(
         path: '/',
@@ -64,6 +70,22 @@ class AppRouter {
             friendName: args['friendName'] ?? '',
           );
         },
+      ),
+      GoRoute(
+        path: '/premium',
+        builder: (context, state) => const PremiumScreen(),
+      ),
+      GoRoute(
+        path: '/ai-chat',
+        builder: (context, state) => const AIChatScreen(),
+      ),
+      GoRoute(
+        path: '/ocr-scanner',
+        builder: (context, state) => const OcrScannerScreen(),
+      ),
+      GoRoute(
+        path: '/advanced-analytics',
+        builder: (context, state) => const AdvancedAnalyticsScreen(),
       ),
     ],
   );
