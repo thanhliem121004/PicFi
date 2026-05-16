@@ -129,6 +129,25 @@ class AppStrings {
   static const String dayStreak = 'ngày streak';
   static const String keepStreak = 'Hãy ghi chép chi tiêu hôm nay để giữ streak!';
 
+  // Notifications
+  static const String notificationPermission = 'Cho phép thông báo';
+  static const String newExpenseFromFriend = 'đã thêm chi tiêu mới';
+  static const String newFriendRequest = 'đã gửi lời mời kết bạn';
+  static const String expenseShared = 'đã chia sẻ chi tiêu';
+  static const String markAsRead = 'Đã đọc';
+  static const String clearAll = 'Xóa tất cả';
+
+  // Offline
+  static const String offlineMode = 'Bạn đang offline';
+  static const String offlineHint = 'Các thay đổi sẽ được đồng bộ khi có kết nối';
+  static const String pendingSync = 'thay đổi chờ đồng bộ';
+  static const String onlineAgain = 'Đã kết nối lại';
+
+  // Deep Link
+  static const String openExpense = 'Mở chi tiêu';
+  static const String openProfile = 'Mở hồ sơ';
+  static const String invalidLink = 'Liên kết không hợp lệ';
+
   // General
   static const String save = 'Lưu';
   static const String cancel = 'Hủy';

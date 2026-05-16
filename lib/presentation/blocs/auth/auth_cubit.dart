@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/services/notification_service.dart';
 
 // ═══════════ STATE ═══════════
 class AuthState extends Equatable {
@@ -93,6 +94,7 @@ class AuthCubit extends Cubit<AuthState> {
           photoUrl: user.photoURL,
         ));
       }
+      NotificationService.saveToken(user.uid);
     } catch (e) {
       emit(state.copyWith(
         isAuthenticated: true,
@@ -102,6 +104,7 @@ class AuthCubit extends Cubit<AuthState> {
         email: user.email,
         photoUrl: user.photoURL,
       ));
+      NotificationService.saveToken(user.uid);
     }
   }
 
@@ -294,6 +297,7 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   Future<void> signOut() async {
+    await NotificationService.removeToken(state.userId ?? '');
     await _auth.signOut();
   }
 }
