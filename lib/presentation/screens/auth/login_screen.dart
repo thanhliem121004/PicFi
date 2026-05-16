@@ -19,37 +19,21 @@ class _LoginScreenState extends State<LoginScreen>
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   late AnimationController _animController;
-  late AnimationController _pulseController;
-  late Animation<double> _illustrationScale;
-  late Animation<double> _illustrationOpacity;
-  late Animation<double> _formSlide;
-  late Animation<double> _formOpacity;
-  late Animation<double> _pulse;
+  late Animation<double> _bubbleSlide;
+  late Animation<double> _bubbleOpacity;
 
   @override
   void initState() {
     super.initState();
     _animController = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 1400),
+      vsync: this, duration: const Duration(milliseconds: 1200),
     );
-    _pulseController = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 2500),
-    )..repeat(reverse: true);
 
-    _illustrationScale = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _animController, curve: const Interval(0, 0.5, curve: Curves.elasticOut)),
+    _bubbleSlide = Tween<double>(begin: 60, end: 0).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
     );
-    _illustrationOpacity = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _animController, curve: const Interval(0, 0.3, curve: Curves.easeOut)),
-    );
-    _formSlide = Tween<double>(begin: 80, end: 0).animate(
-      CurvedAnimation(parent: _animController, curve: const Interval(0.25, 0.7, curve: Curves.easeOutCubic)),
-    );
-    _formOpacity = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _animController, curve: const Interval(0.25, 0.6, curve: Curves.easeOut)),
-    );
-    _pulse = Tween<double>(begin: 0.95, end: 1.05).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    _bubbleOpacity = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
     );
 
     _animController.forward();
@@ -60,7 +44,6 @@ class _LoginScreenState extends State<LoginScreen>
     _emailController.dispose();
     _passwordController.dispose();
     _animController.dispose();
-    _pulseController.dispose();
     super.dispose();
   }
 
@@ -82,339 +65,251 @@ class _LoginScreenState extends State<LoginScreen>
         }
       },
       child: Scaffold(
-        body: AnimatedBuilder(
-          animation: Listenable.merge([_animController, _pulseController]),
-          builder: (context, _) {
-            return Container(
-              width: double.infinity,
-              height: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFFF0FBF9),
-                    Color(0xFFFFF8F0),
-                    Color(0xFFF5F0FF),
-                    Color(0xFFEFF5F3),
-                  ],
-                  stops: [0.0, 0.3, 0.6, 1.0],
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFFD4C5A9),
+                Color(0xFFE8DCC8),
+                Color(0xFF8FBAB5),
+                Color(0xFF5D9E97),
+              ],
+            ),
+          ),
+          child: SafeArea(
+            child: Column(
+              children: [
+                const Spacer(flex: 2),
+                AnimatedBuilder(
+                  animation: _animController,
+                  builder: (context, _) {
+                    return Column(
+                      children: [
+                        _ChatBubble(
+                          message: 'Chào mừng bạn quay lại! 👋',
+                          isSent: false,
+                          opacity: _bubbleOpacity.value,
+                          slide: _bubbleSlide.value,
+                        ),
+                        const SizedBox(height: 8),
+                        _ChatBubble(
+                          message: 'Email của bạn là gì?',
+                          isSent: true,
+                          opacity: _bubbleOpacity.value,
+                          slide: _bubbleSlide.value + 10,
+                        ),
+                      ],
+                    );
+                  },
                 ),
-              ),
-              child: SafeArea(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 20),
-
-                      // ═══ Animated Illustration ═══
-                      Opacity(
-                        opacity: _illustrationOpacity.value,
-                        child: Transform.scale(
-                          scale: _illustrationScale.value,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // Glowing background
-                              AnimatedBuilder(
-                                animation: _pulseController,
-                                builder: (context, _) => Container(
-                                  width: 220 * _pulse.value,
-                                  height: 220 * _pulse.value,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: RadialGradient(
-                                      colors: [
-                                        AppColors.primary.withValues(alpha: 0.08),
-                                        AppColors.primary.withValues(alpha: 0),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // Illustration
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(24),
-                                child: Image.asset(
-                                  'assets/images/auth_illustration.png',
-                                  width: 200,
-                                  height: 200,
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (_, __, ___) => Container(
-                                    width: 200, height: 200,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(24),
-                                      gradient: const LinearGradient(
-                                        colors: [Color(0xFF006A65), Color(0xFF4ECDC4)],
-                                      ),
-                                    ),
-                                    child: const Icon(Icons.photo_camera_rounded, size: 80, color: Colors.white),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                const SizedBox(height: 16),
+                AnimatedBuilder(
+                  animation: _animController,
+                  builder: (context, _) {
+                    return Opacity(
+                      opacity: _bubbleOpacity.value,
+                      child: Transform.translate(
+                        offset: Offset(0, _bubbleSlide.value + 20),
+                        child: _ChatTextField(
+                          controller: _emailController,
+                          hint: 'PicFi ID hoặc Email',
+                          isEmail: true,
                         ),
                       ),
-                      const SizedBox(height: 16),
-
-                      // ═══ Welcome Text ═══
-                      Opacity(
-                        opacity: _illustrationOpacity.value,
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
+                AnimatedBuilder(
+                  animation: _animController,
+                  builder: (context, _) {
+                    return Opacity(
+                      opacity: _bubbleOpacity.value,
+                      child: Transform.translate(
+                        offset: Offset(0, _bubbleSlide.value + 30),
                         child: Column(
                           children: [
-                            ShaderMask(
-                              shaderCallback: (bounds) => const LinearGradient(
-                                colors: [Color(0xFF006A65), Color(0xFF4ECDC4), Color(0xFFFF6B6B)],
-                              ).createShader(bounds),
-                              child: const Text(
-                                AppStrings.appName,
-                                style: TextStyle(
-                                  fontFamily: 'Manrope', fontSize: 38,
-                                  fontWeight: FontWeight.w800, color: Colors.white,
-                                  letterSpacing: -1,
-                                ),
-                              ),
+                            _ChatBubble(
+                              message: 'Mật khẩu của bạn? 🔐',
+                              isSent: true,
+                              opacity: 1,
+                              slide: 0,
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              AppStrings.loginWelcome,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontFamily: 'Inter', fontSize: 15,
-                                color: AppColors.onSurfaceVariant.withValues(alpha: 0.8),
-                                height: 1.4,
+                            const SizedBox(height: 12),
+                            _ChatTextField(
+                              controller: _passwordController,
+                              hint: AppStrings.password,
+                              obscure: _obscurePassword,
+                              suffix: IconButton(
+                                icon: Icon(
+                                  _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                                  color: AppColors.outline, size: 20,
+                                ),
+                                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 28),
-
-                      // ═══ Form Card ═══
-                      Opacity(
-                        opacity: _formOpacity.value,
-                        child: Transform.translate(
-                          offset: Offset(0, _formSlide.value),
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 20),
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.85),
-                              borderRadius: BorderRadius.circular(28),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.06),
-                                  blurRadius: 30,
-                                  offset: const Offset(0, 15),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              children: [
-                                // Email
-                                _VibrantTextField(
-                                  controller: _emailController,
-                                  hint: 'PicFi ID hoặc Email',
-                                  icon: Icons.alternate_email_rounded,
-                                  iconColor: const Color(0xFF4ECDC4),
-                                ),
-                                const SizedBox(height: 14),
-                                // Password
-                                _VibrantTextField(
-                                  controller: _passwordController,
-                                  hint: AppStrings.password,
-                                  icon: Icons.lock_outline_rounded,
-                                  iconColor: const Color(0xFFFF6B6B),
-                                  obscure: _obscurePassword,
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                                      color: AppColors.outline, size: 22,
-                                    ),
-                                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton(
-                                    onPressed: () {},
-                                    child: const Text(AppStrings.forgotPassword, style: TextStyle(
-                                      fontFamily: 'Inter', fontSize: 14,
-                                      fontWeight: FontWeight.w600, color: AppColors.primary,
-                                    )),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                // Login button
-                                BlocBuilder<AuthCubit, AuthState>(
-                                  builder: (context, state) {
-                                    return _EnergyButton(
-                                      label: AppStrings.login,
-                                      isLoading: state.isLoading,
-                                      gradient: const [Color(0xFF006A65), Color(0xFF4ECDC4)],
-                                      onTap: () {
-                                        HapticFeedback.mediumImpact();
-                                        context.read<AuthCubit>().signInSmart(
-                                          _emailController.text.trim(),
-                                          _passwordController.text,
-                                        );
-                                      },
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: 18),
-                                // Divider
-                                Row(
-                                  children: [
-                                    Expanded(child: Container(height: 1, color: AppColors.outlineVariant.withValues(alpha: 0.3))),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFF7F9F8),
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: Text(AppStrings.or, style: TextStyle(
-                                          fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w500,
-                                          color: AppColors.outline,
-                                        )),
-                                      ),
-                                    ),
-                                    Expanded(child: Container(height: 1, color: AppColors.outlineVariant.withValues(alpha: 0.3))),
-                                  ],
-                                ),
-                                const SizedBox(height: 18),
-                                // Google button
-                                _SocialButton(
-                                  label: AppStrings.googleSignIn,
-                                  icon: Icons.g_mobiledata_rounded,
-                                  iconBgColor: const Color(0xFFFF6B6B),
-                                  onTap: () => context.read<AuthCubit>().signInWithGoogle(),
-                                ),
-                              ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+                AnimatedBuilder(
+                  animation: _animController,
+                  builder: (context, _) {
+                    return Opacity(
+                      opacity: _bubbleOpacity.value,
+                      child: Transform.translate(
+                        offset: Offset(0, _bubbleSlide.value + 40),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 32),
+                            child: TextButton(
+                              onPressed: () {},
+                              child: const Text(AppStrings.forgotPassword, style: TextStyle(
+                                fontFamily: 'Inter', fontSize: 13,
+                                fontWeight: FontWeight.w600, color: Colors.white70,
+                              )),
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
-
-                      // ═══ Register link ═══
-                      Opacity(
-                        opacity: _formOpacity.value,
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
+                AnimatedBuilder(
+                  animation: _animController,
+                  builder: (context, _) {
+                    return Opacity(
+                      opacity: _bubbleOpacity.value,
+                      child: Transform.translate(
+                        offset: Offset(0, _bubbleSlide.value + 50),
+                        child: BlocBuilder<AuthCubit, AuthState>(
+                          builder: (context, state) {
+                            return _SendButton(
+                              label: AppStrings.login,
+                              isLoading: state.isLoading,
+                              onTap: () {
+                                HapticFeedback.mediumImpact();
+                                context.read<AuthCubit>().signInSmart(
+                                  _emailController.text.trim(),
+                                  _passwordController.text,
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                AnimatedBuilder(
+                  animation: _animController,
+                  builder: (context, _) {
+                    return Opacity(
+                      opacity: _bubbleOpacity.value,
+                      child: Transform.translate(
+                        offset: Offset(0, _bubbleSlide.value + 60),
                         child: GestureDetector(
                           onTap: () => context.go('/register'),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(20),
-                              color: Colors.white.withValues(alpha: 0.5),
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(24),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(AppStrings.noAccount, style: TextStyle(
-                                  fontFamily: 'Inter', fontSize: 15,
-                                  color: AppColors.onSurfaceVariant,
+                                Text(AppStrings.noAccount, style: const TextStyle(
+                                  fontFamily: 'Inter', fontSize: 14,
+                                  color: Colors.white70,
                                 )),
                                 const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [Color(0xFF006A65), Color(0xFF4ECDC4)],
-                                    ),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Text(AppStrings.register, style: TextStyle(
-                                    fontFamily: 'Inter', fontSize: 14,
-                                    fontWeight: FontWeight.w700, color: Colors.white,
-                                  )),
-                                ),
+                                const Text(AppStrings.register, style: TextStyle(
+                                  fontFamily: 'Inter', fontSize: 14,
+                                  fontWeight: FontWeight.w700, color: Colors.white,
+                                )),
                               ],
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 30),
-                    ],
-                  ),
+                    );
+                  },
                 ),
-              ),
-            );
-          },
+                const Spacer(flex: 3),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-// ═══════════════════════════════════════════════════════
-// VIBRANT REUSABLE WIDGETS
-// ═══════════════════════════════════════════════════════
-class _VibrantTextField extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final IconData icon;
-  final Color iconColor;
-  final TextInputType? keyboardType;
-  final bool obscure;
-  final Widget? suffixIcon;
+class _ChatBubble extends StatelessWidget {
+  final String message;
+  final bool isSent;
+  final double opacity;
+  final double slide;
 
-  const _VibrantTextField({
-    required this.controller,
-    required this.hint,
-    required this.icon,
-    required this.iconColor,
-    this.keyboardType,
-    this.obscure = false,
-    this.suffixIcon,
+  const _ChatBubble({
+    required this.message,
+    required this.isSent,
+    required this.opacity,
+    required this.slide,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7F9F8),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        obscureText: obscure,
-        style: const TextStyle(fontFamily: 'Inter', fontSize: 16),
-        decoration: InputDecoration(
-          hintText: hint,
-          prefixIcon: Padding(
-            padding: const EdgeInsets.only(left: 14, right: 10),
-            child: Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+    return Opacity(
+      opacity: opacity,
+      child: Transform.translate(
+        offset: Offset(0, slide),
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: isSent ? 60 : 24,
+            right: isSent ? 24 : 60,
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            decoration: BoxDecoration(
+              color: isSent
+                  ? const Color(0xFF006A65).withValues(alpha: 0.9)
+                  : Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(22),
+                topRight: const Radius.circular(22),
+                bottomLeft: Radius.circular(isSent ? 22 : 6),
+                bottomRight: Radius.circular(isSent ? 6 : 22),
               ),
-              child: Icon(icon, size: 20, color: iconColor),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-          ),
-          prefixIconConstraints: const BoxConstraints(minWidth: 60),
-          suffixIcon: suffixIcon,
-          border: InputBorder.none,
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(18),
-            borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.2)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(18),
-            borderSide: BorderSide(color: iconColor, width: 1.5),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-          hintStyle: TextStyle(
-            fontFamily: 'Inter', fontSize: 15,
-            color: AppColors.outline.withValues(alpha: 0.5),
+            child: Text(
+              message,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 15,
+                fontWeight: isSent ? FontWeight.w500 : FontWeight.w400,
+                color: isSent ? Colors.white : Colors.white.withValues(alpha: 0.9),
+                height: 1.3,
+              ),
+            ),
           ),
         ),
       ),
@@ -422,180 +317,127 @@ class _VibrantTextField extends StatelessWidget {
   }
 }
 
-class _EnergyButton extends StatefulWidget {
+class _ChatTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final bool obscure;
+  final Widget? suffix;
+  final bool isEmail;
+
+  const _ChatTextField({
+    required this.controller,
+    required this.hint,
+    this.obscure = false,
+    this.suffix,
+    this.isEmail = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: TextField(
+          controller: controller,
+          keyboardType: isEmail ? TextInputType.emailAddress : null,
+          obscureText: obscure,
+          style: const TextStyle(fontFamily: 'Inter', fontSize: 16, color: Colors.white),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(
+              fontFamily: 'Inter', fontSize: 15,
+              color: Colors.white.withValues(alpha: 0.5),
+            ),
+            suffixIcon: suffix != null
+                ? Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: suffix,
+                  )
+                : null,
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          ),
+          cursorColor: Colors.white,
+        ),
+      ),
+    );
+  }
+}
+
+class _SendButton extends StatefulWidget {
   final String label;
   final bool isLoading;
-  final List<Color> gradient;
   final VoidCallback onTap;
 
-  const _EnergyButton({
+  const _SendButton({
     required this.label,
     required this.isLoading,
-    required this.gradient,
     required this.onTap,
   });
 
   @override
-  State<_EnergyButton> createState() => _EnergyButtonState();
+  State<_SendButton> createState() => _SendButtonState();
 }
 
-class _EnergyButtonState extends State<_EnergyButton>
-    with SingleTickerProviderStateMixin {
+class _SendButtonState extends State<_SendButton> {
   bool _pressed = false;
-  late AnimationController _shimmer;
-
-  @override
-  void initState() {
-    super.initState();
-    _shimmer = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 2000),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _shimmer.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        if (!widget.isLoading) widget.onTap();
-      },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.96 : 1.0,
-        duration: const Duration(milliseconds: 150),
-        child: AnimatedBuilder(
-          animation: _shimmer,
-          builder: (context, _) => Container(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapUp: (_) {
+          setState(() => _pressed = false);
+          if (!widget.isLoading) widget.onTap();
+        },
+        onTapCancel: () => setState(() => _pressed = false),
+        child: AnimatedScale(
+          scale: _pressed ? 0.95 : 1.0,
+          duration: const Duration(milliseconds: 120),
+          child: Container(
             width: double.infinity,
             height: 58,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: widget.gradient,
-              ),
-              borderRadius: BorderRadius.circular(18),
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(29),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
               boxShadow: [
                 BoxShadow(
-                  color: widget.gradient[0].withValues(alpha: 0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
-            child: Stack(
-              children: [
-                // Shimmer overlay
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: ShaderMask(
-                    shaderCallback: (bounds) => LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.white.withValues(alpha: 0),
-                        Colors.white.withValues(alpha: 0.15),
-                        Colors.white.withValues(alpha: 0),
+            child: Center(
+              child: widget.isLoading
+                  ? const SizedBox(width: 24, height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 22),
+                        const SizedBox(width: 8),
+                        Text(widget.label, style: const TextStyle(
+                          fontFamily: 'Manrope', fontSize: 17,
+                          fontWeight: FontWeight.w700, color: Colors.white,
+                        )),
                       ],
-                      stops: [
-                        (_shimmer.value - 0.3).clamp(0.0, 1.0),
-                        _shimmer.value.clamp(0.0, 1.0),
-                        (_shimmer.value + 0.3).clamp(0.0, 1.0),
-                      ],
-                    ).createShader(bounds),
-                    blendMode: BlendMode.srcATop,
-                    child: Container(color: Colors.transparent, width: double.infinity, height: 58),
-                  ),
-                ),
-                Center(
-                  child: widget.isLoading
-                      ? const SizedBox(width: 24, height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(widget.label, style: const TextStyle(
-                              fontFamily: 'Manrope', fontSize: 18,
-                              fontWeight: FontWeight.w700, color: Colors.white,
-                            )),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20),
-                          ],
-                        ),
-                ),
-              ],
+                    ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SocialButton extends StatefulWidget {
-  final String label;
-  final IconData icon;
-  final Color iconBgColor;
-  final VoidCallback onTap;
-
-  const _SocialButton({
-    required this.label,
-    required this.icon,
-    required this.iconBgColor,
-    required this.onTap,
-  });
-
-  @override
-  State<_SocialButton> createState() => _SocialButtonState();
-}
-
-class _SocialButtonState extends State<_SocialButton> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) { setState(() => _pressed = false); widget.onTap(); },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 150),
-        child: Container(
-          width: double.infinity,
-          height: 58,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 12, offset: const Offset(0, 4)),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 32, height: 32,
-                decoration: BoxDecoration(
-                  color: widget.iconBgColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(widget.icon, size: 24, color: widget.iconBgColor),
-              ),
-              const SizedBox(width: 12),
-              Text(widget.label, style: const TextStyle(
-                fontFamily: 'Inter', fontSize: 16,
-                fontWeight: FontWeight.w600, color: AppColors.onSurface,
-              )),
-            ],
           ),
         ),
       ),

@@ -9,12 +9,14 @@ import '../../presentation/screens/expense/expense_detail_screen.dart';
 import '../../presentation/screens/friends/friends_screen.dart';
 import '../../presentation/screens/friends/chat_screen.dart';
 import '../../presentation/screens/expense/expense_list_screen.dart';
+import '../../presentation/screens/profile/profile_screen.dart';
 
 class AppRouter {
   AppRouter._();
 
   static final router = GoRouter(
     initialLocation: '/',
+    debugLogDiagnostics: true,
     routes: [
       GoRoute(
         path: '/',
@@ -64,6 +66,10 @@ class AppRouter {
             friendName: args['friendName'] ?? '',
           );
         },
+      ),
+      GoRoute(
+        path: '/profile/:userId',
+        builder: (context, state) => ProfileScreen(userId: state.pathParameters['userId']),
       ),
     ],
   );

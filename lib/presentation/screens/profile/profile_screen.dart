@@ -15,7 +15,9 @@ import '../../blocs/friends/friends_cubit.dart';
 import '../../../core/utils/currency_formatter.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final String? userId;
+
+  const ProfileScreen({super.key, this.userId});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
