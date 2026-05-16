@@ -10,17 +10,30 @@ import 'presentation/blocs/expense/expense_cubit.dart';
 import 'presentation/blocs/auth/auth_cubit.dart';
 import 'presentation/blocs/budget/budget_cubit.dart';
 import 'presentation/blocs/friends/friends_cubit.dart';
+import 'core/services/notification_service.dart';
+import 'core/services/offline_service.dart';
+import 'core/services/deep_link_service.dart';
+import 'core/utils/performance.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('vi', null);
   await Firebase.initializeApp();
 
-  runApp(const PicFiApp());
+  ImageCacheManager.configure();
+
+  final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+  await NotificationService.init(scaffoldMessengerKey);
+  await OfflineService.instance.init();
+  DeepLinkService.instance.init();
+
+  runApp(PicFiApp(scaffoldMessengerKey: scaffoldMessengerKey));
 }
 
 class PicFiApp extends StatelessWidget {
-  const PicFiApp({super.key});
+  final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey;
+
+  const PicFiApp({super.key, required this.scaffoldMessengerKey});
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +54,7 @@ class PicFiApp extends StatelessWidget {
             darkTheme: AppTheme.darkTheme,
             themeMode: themeMode,
             routerConfig: AppRouter.router,
+            scaffoldMessengerKey: scaffoldMessengerKey,
           );
         },
       ),
