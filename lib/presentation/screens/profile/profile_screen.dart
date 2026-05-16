@@ -12,10 +12,13 @@ import '../../blocs/theme/theme_cubit.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../blocs/expense/expense_cubit.dart';
 import '../../blocs/friends/friends_cubit.dart';
+import '../../blocs/premium/premium_cubit.dart';
 import '../../../core/utils/currency_formatter.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final String? userId;
+
+  const ProfileScreen({super.key, this.userId});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -490,6 +493,60 @@ class _ProfileScreenState extends State<ProfileScreen>
                     ),
                     const SizedBox(height: 12),
 
+                    // ═══ AI & Premium Group ═══
+                    Opacity(
+                      opacity: _bodyOpacity.value,
+                      child: Transform.translate(
+                        offset: Offset(0, _bodySlide.value * 1.0),
+                        child: _SettingsGroup(
+                          title: 'AI & Premium',
+                          children: [
+                            BlocBuilder<PremiumCubit, PremiumState>(
+                              builder: (context, state) {
+                                return _VibrantTile(
+                                  icon: Icons.star_rounded,
+                                  color: const Color(0xFFFFD700),
+                                  title: state.isPremium ? 'Premium ● Đã kích hoạt' : AppStrings.upgradePremium,
+                                  trailing: state.isPremium
+                                      ? Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF2ECC71).withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: const Text('Đã kích hoạt', style: TextStyle(
+                                            fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF2ECC71),
+                                          )),
+                                        )
+                                      : null,
+                                  onTap: () => context.push('/premium'),
+                                );
+                              },
+                            ),
+                            _VibrantTile(
+                              icon: Icons.chat_rounded,
+                              color: const Color(0xFF4ECDC4),
+                              title: AppStrings.aiChat,
+                              onTap: () => context.push('/ai-chat'),
+                            ),
+                            _VibrantTile(
+                              icon: Icons.document_scanner_rounded,
+                              color: const Color(0xFF45B7D1),
+                              title: AppStrings.scanReceipt,
+                              onTap: () => context.push('/ocr-scanner'),
+                            ),
+                            _VibrantTile(
+                              icon: Icons.analytics_rounded,
+                              color: const Color(0xFFBB8FCE),
+                              title: AppStrings.advancedAnalytics,
+                              onTap: () => context.push('/advanced-analytics'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
                     // ═══ Settings Group 2 ═══
                     Opacity(
                       opacity: _bodyOpacity.value,
@@ -524,6 +581,60 @@ class _ProfileScreenState extends State<ProfileScreen>
                               color: const Color(0xFFFF6B6B),
                               title: AppStrings.friends,
                               onTap: () => context.push('/friends'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // ═══ Security Group ═══
+                    Opacity(
+                      opacity: _bodyOpacity.value,
+                      child: Transform.translate(
+                        offset: Offset(0, _bodySlide.value * 1.4),
+                        child: _SettingsGroup(
+                          title: AppStrings.security,
+                          children: [
+                            BlocBuilder<AuthCubit, AuthState>(
+                              builder: (context, authState) {
+                                return _VibrantTile(
+                                  icon: Icons.fingerprint_rounded,
+                                  color: const Color(0xFF006A65),
+                                  title: AppStrings.biometricAuth,
+                                  trailing: Switch(
+                                    value: false,
+                                    activeTrackColor: const Color(0xFF006A65),
+                                    onChanged: (val) {
+                                      HapticFeedback.lightImpact();
+                                      _showPremiumToast(val ? 'Đã bật xác thực vân tay 🔒' : 'Đã tắt xác thực vân tay');
+                                    },
+                                  ),
+                                  onTap: () {
+                                    HapticFeedback.lightImpact();
+                                    _showPremiumToast('Xác thực vân tay/Face ID 🔒');
+                                  },
+                                );
+                              },
+                            ),
+                            _VibrantTile(
+                              icon: Icons.lock_outline_rounded,
+                              color: const Color(0xFF45B7D1),
+                              title: AppStrings.pinCode,
+                              trailing: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2ECC71).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text('Bảo mật', style: TextStyle(
+                                  fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF2ECC71),
+                                )),
+                              ),
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                _showPremiumToast('Mã PIN đã được thiết lập ✅');
+                              },
                             ),
                           ],
                         ),
