@@ -148,6 +148,32 @@ class AppStrings {
   static const String openProfile = 'Mở hồ sơ';
   static const String invalidLink = 'Liên kết không hợp lệ';
 
+  // Premium
+  static const String premium = 'Premium';
+  static const String upgradePremium = 'Nâng cấp Premium';
+  static const String premiumFeatures = 'Tính năng Premium';
+  static const String restorePurchase = 'Khôi phục giao dịch';
+
+  // AI
+  static const String aiAssistant = 'AI Trợ lý';
+  static const String aiChat = 'Trò chuyện với AI';
+  static const String scanReceipt = 'Quét hóa đơn';
+  static const String autoCategorize = 'Phân loại tự động';
+  static const String aiInsights = 'Phân tích thông minh';
+
+  // Analytics
+  static const String advancedAnalytics = 'Phân tích nâng cao';
+  static const String spendingTrends = 'Xu hướng chi tiêu';
+  static const String categoryBreakdown = 'Phân bổ danh mục';
+  static const String prediction = 'Dự đoán chi tiêu';
+
+  // Security
+  static const String security = 'Bảo mật';
+  static const String biometricAuth = 'Xác thực vân tay/Face ID';
+  static const String pinCode = 'Mã PIN';
+  static const String encryptionStatus = 'Trạng thái mã hóa';
+  static const String appLock = 'Khóa ứng dụng';
+
   // General
   static const String save = 'Lưu';
   static const String cancel = 'Hủy';
