@@ -1,52 +1,106 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // User profiles: only the owner can read/write
+    
+    // User profile and all their subcollections
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
 
-      // User subcollections
+      // Notifications subcollection
       match /notifications/{notificationId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+
+      // Settings subcollection
       match /settings/{settingId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+      
+      // Expenses subcollection
+      match /expenses/{expenseId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Budgets subcollection
+      match /budgets/{budgetId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Wallets subcollection
+      match /wallets/{walletId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Savings Goals subcollection
+      match /savings_goals/{goalId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Recurring expenses subcollection
+      match /recurring/{recurringId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Achievements subcollection
+      match /achievements/{achievementId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Groups subcollection
+      match /groups/{groupId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+        
+        // Group expenses
+        match /expenses/{expenseId} {
+          allow read, write: if request.auth != null && request.auth.uid == userId;
+        }
+      }
+      
+      // Friends subcollection (special bi-directional logic for requests & unfriend)
+      match /friends/{friendId} {
+        allow read: if request.auth != null && (
+          request.auth.uid == userId || 
+          resource.data.friendId == request.auth.uid
+        );
+        allow create: if request.auth != null && (
+          request.auth.uid == userId || 
+          (request.resource.data.friendId == request.auth.uid && request.resource.data.status == 'pending')
+        );
+        allow update: if request.auth != null && (
+          request.auth.uid == userId || 
+          resource.data.friendId == request.auth.uid
+        );
+        allow delete: if request.auth != null && (
+          request.auth.uid == userId || 
+          resource.data.friendId == request.auth.uid
+        );
+      }
     }
 
-    // Expenses: owner can CRUD, friends can read
-    match /expenses/{expenseId} {
-      allow read: if request.auth != null &&
-        (resource.data.userId == request.auth.uid ||
-         resource.data.sharedWith has request.auth.uid);
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-    }
-
-    // Feed: owner can CRUD, friends can read
+    // Feed (Shared expenses feed) - root collection
     match /feed/{postId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null;
       allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      
+      // Reactions on feed post
+      match /reactions/{reactionId} {
+        allow read, write: if request.auth != null;
+      }
+      // Comments on feed post
+      match /comments/{commentId} {
+        allow read, write: if request.auth != null;
+      }
     }
 
-    // Friends: owner can manage
-    match /friends/{friendId} {
-      allow read, write: if request.auth != null &&
-        (resource.data.userId == request.auth.uid ||
-         resource.data.friendId == request.auth.uid);
-    }
-
-    // Chat messages: participants only
+    // Chats and messaging - root collection
     match /chats/{chatId} {
-      allow read, write: if request.auth != null &&
-        (resource.data.senderId == request.auth.uid ||
-         resource.data.receiverId == request.auth.uid);
-    }
-
-    // Budgets: owner only
-    match /budgets/{budgetId} {
-      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow read, write: if request.auth != null;
+      
+      // Messages inside a chat room
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null;
+      }
     }
   }
 }

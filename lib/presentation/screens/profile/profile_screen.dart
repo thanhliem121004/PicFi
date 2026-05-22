@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -15,6 +16,7 @@ import '../../blocs/budget/budget_cubit.dart';
 import '../../blocs/expense/expense_cubit.dart';
 import '../../blocs/friends/friends_cubit.dart';
 import '../../blocs/premium/premium_cubit.dart';
+import '../../blocs/lock/lock_cubit.dart' as lock;
 import '../../../core/utils/currency_formatter.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -233,6 +235,29 @@ class _ProfileScreenState extends State<ProfileScreen>
                           ),
                           child: Stack(
                             children: [
+                              if (Navigator.canPop(context))
+                                Positioned(
+                                  top: -4,
+                                  right: -4,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      HapticFeedback.lightImpact();
+                                      context.pop();
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.2),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close_rounded,
+                                        size: 18,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               // Decorative circles
                               Positioned(
                                 top: -15, right: -15,
@@ -329,7 +354,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                                               ),
                                             ),
                                             const SizedBox(height: 8),
-                                            Row(
+                                            Wrap(
+                                              spacing: 8,
+                                              runSpacing: 4,
                                               children: [
                                                 // PicFi ID badge
                                                 GestureDetector(
@@ -362,7 +389,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                     ),
                                                   ),
                                                 ),
-                                                const SizedBox(width: 8),
                                                 // Streak badge (real data)
                                                 BlocBuilder<FriendsCubit, FriendsState>(
                                                   builder: (ctx, fState) {
@@ -396,13 +422,19 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     ),
                                   ),
                                   // Edit
-                                  Container(
-                                    width: 36, height: 36,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(12),
+                                  GestureDetector(
+                                    onTap: () {
+                                      HapticFeedback.mediumImpact();
+                                      _showPremiumToast('Tính năng sửa hồ sơ đang phát triển 🛠️');
+                                    },
+                                    child: Container(
+                                      width: 36, height: 36,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Icon(Icons.edit_rounded, size: 18, color: Colors.white),
                                     ),
-                                    child: const Icon(Icons.edit_rounded, size: 18, color: Colors.white),
                                   ),
                                 ],
                               ),
@@ -489,6 +521,12 @@ class _ProfileScreenState extends State<ProfileScreen>
                               title: AppStrings.budget,
                               onTap: () => _showBudgetDialog(context),
                             ),
+                            _VibrantTile(
+                              icon: Icons.monetization_on_rounded,
+                              color: const Color(0xFF2ECC71),
+                              title: 'Thu nhập hàng tháng',
+                              onTap: () => _showIncomeDialog(context),
+                            ),
                           ],
                         ),
                       ),
@@ -563,6 +601,12 @@ class _ProfileScreenState extends State<ProfileScreen>
                               title: AppStrings.exportReport,
                               onTap: () => _showExportDialog(context),
                             ),
+                            _VibrantTile(
+                              icon: Icons.cloud_upload_rounded,
+                              color: const Color(0xFF4ECDC4),
+                              title: 'Sao lưu & Khôi phục',
+                              onTap: () => context.push('/backup'),
+                            ),
                             BlocBuilder<ThemeCubit, ThemeMode>(
                               builder: (context, themeMode) {
                                 return _VibrantTile(
@@ -598,44 +642,62 @@ class _ProfileScreenState extends State<ProfileScreen>
                         child: _SettingsGroup(
                           title: AppStrings.security,
                           children: [
-                            BlocBuilder<AuthCubit, AuthState>(
-                              builder: (context, authState) {
+                            BlocBuilder<lock.LockCubit, lock.LockState>(
+                              builder: (context, lockState) {
                                 return _VibrantTile(
                                   icon: Icons.fingerprint_rounded,
                                   color: const Color(0xFF006A65),
                                   title: AppStrings.biometricAuth,
                                   trailing: Switch(
-                                    value: false,
+                                    value: lockState.useBiometric,
                                     activeTrackColor: const Color(0xFF006A65),
-                                    onChanged: (val) {
-                                      HapticFeedback.lightImpact();
-                                      _showPremiumToast(val ? 'Đã bật xác thực vân tay 🔒' : 'Đã tắt xác thực vân tay');
-                                    },
+                                    onChanged: lockState.isEnabled
+                                        ? (val) {
+                                            HapticFeedback.lightImpact();
+                                            context.read<lock.LockCubit>().toggleBiometric(val);
+                                          }
+                                        : null,
                                   ),
-                                  onTap: () {
-                                    HapticFeedback.lightImpact();
-                                    _showPremiumToast('Xác thực vân tay/Face ID 🔒');
-                                  },
+                                  onTap: lockState.isEnabled
+                                      ? () {
+                                          HapticFeedback.lightImpact();
+                                          context.read<lock.LockCubit>().toggleBiometric(!lockState.useBiometric);
+                                        }
+                                      : () {
+                                          _showPremiumToast('Vui lòng bật Khóa ứng dụng trước 🔒', isError: true);
+                                        },
                                 );
                               },
                             ),
-                            _VibrantTile(
-                              icon: Icons.lock_outline_rounded,
-                              color: const Color(0xFF45B7D1),
-                              title: AppStrings.pinCode,
-                              trailing: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF2ECC71).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Text('Bảo mật', style: TextStyle(
-                                  fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF2ECC71),
-                                )),
-                              ),
-                              onTap: () {
-                                HapticFeedback.lightImpact();
-                                _showPremiumToast('Mã PIN đã được thiết lập ✅');
+                            BlocBuilder<lock.LockCubit, lock.LockState>(
+                              builder: (context, lockState) {
+                                return _VibrantTile(
+                                  icon: Icons.lock_outline_rounded,
+                                  color: const Color(0xFF45B7D1),
+                                  title: AppStrings.pinCode,
+                                  trailing: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: lockState.isEnabled
+                                          ? const Color(0xFF2ECC71).withValues(alpha: 0.1)
+                                          : Colors.grey.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      lockState.isEnabled ? 'Đã bật' : 'Chưa bật',
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: lockState.isEnabled ? const Color(0xFF2ECC71) : Colors.grey,
+                                      ),
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    HapticFeedback.lightImpact();
+                                    context.push('/lock-settings');
+                                  },
+                                );
                               },
                             ),
                           ],
@@ -799,6 +861,119 @@ class _ProfileScreenState extends State<ProfileScreen>
                   child: const Center(child: Text('Lưu thay đổi', style: TextStyle(
                     fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white,
                   ))),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ═══ Income Dialog ═══
+  void _showIncomeDialog(BuildContext context) {
+    final expenseCubit = context.read<ExpenseCubit>();
+    final currentIncome = expenseCubit.state.totalIncome;
+    final controller = TextEditingController(text: currentIncome > 0 ? currentIncome.toStringAsFixed(0) : '');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(
+              color: AppColors.outlineVariant.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(2),
+            )),
+            const SizedBox(height: 20),
+            Container(
+              width: 64, height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(colors: [
+                  const Color(0xFF2ECC71).withValues(alpha: 0.15),
+                  const Color(0xFF27AE60).withValues(alpha: 0.1),
+                ]),
+              ),
+              child: const Icon(Icons.monetization_on_rounded, size: 28, color: Color(0xFF2ECC71)),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Thu nhập hàng tháng',
+              style: TextStyle(fontFamily: 'Manrope', fontSize: 22, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Thiết lập thu nhập hàng tháng để tính toán phân tích chi tiêu',
+              style: TextStyle(
+                fontFamily: 'Inter', fontSize: 14,
+                color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+
+            // Amount field
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F9F8),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFF2ECC71).withValues(alpha: 0.15)),
+              ),
+              child: TextField(
+                controller: controller,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontFamily: 'Manrope', fontSize: 28, fontWeight: FontWeight.w800),
+                decoration: InputDecoration(
+                  hintText: '20,000,000 ₫',
+                  hintStyle: TextStyle(
+                    fontFamily: 'Manrope', fontSize: 28, fontWeight: FontWeight.w800,
+                    color: AppColors.outline.withValues(alpha: 0.3),
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Save button
+            SizedBox(
+              width: double.infinity,
+              child: GestureDetector(
+                onTap: () {
+                  final incomeText = controller.text.replaceAll('.', '').replaceAll(',', '');
+                  final income = double.tryParse(incomeText);
+                  if (income != null && income >= 0) {
+                    Navigator.pop(ctx);
+                    HapticFeedback.mediumImpact();
+                    expenseCubit.setIncome(income);
+                    _showPremiumToast('Đã cập nhật thu nhập: ${CurrencyFormatter.formatShort(income)} 💵');
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [Color(0xFF2ECC71), Color(0xFF27AE60)]),
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(color: const Color(0xFF2ECC71).withValues(alpha: 0.25), blurRadius: 12, offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: const Center(child: Text(
+                    'Lưu thu nhập 💵',
+                    style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+                  )),
                 ),
               ),
             ),
@@ -1248,6 +1423,8 @@ class _SettingsGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1258,26 +1435,40 @@ class _SettingsGroup extends StatelessWidget {
             color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
           )),
         ),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.7),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: ClipRRect(
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-          ),
-          child: Column(
-            children: children.asMap().entries.map((entry) {
-              final index = entry.key;
-              final child = entry.value;
-              return Column(
-                children: [
-                  child,
-                  if (index < children.length - 1)
-                    Divider(height: 1, indent: 64, endIndent: 16,
-                      color: AppColors.outlineVariant.withValues(alpha: 0.15)),
-                ],
-              );
-            }).toList(),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF141A19).withValues(alpha: 0.6)
+                      : Colors.white.withValues(alpha: 0.65),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.1)
+                        : Colors.white.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Column(
+                  children: children.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final child = entry.value;
+                    return Column(
+                      children: [
+                        child,
+                        if (index < children.length - 1)
+                          Divider(height: 1, indent: 64, endIndent: 16,
+                            color: AppColors.outlineVariant.withValues(alpha: 0.15)),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
           ),
         ),
       ],

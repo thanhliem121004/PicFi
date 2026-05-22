@@ -16,8 +16,8 @@ class BudgetState extends Equatable {
     this.error,
   });
 
-  double get totalSpent => budgets.fold(0, (sum, b) => sum + b.currentSpent);
-  double get totalLimit => budgets.fold(0, (sum, b) => sum + b.monthlyLimit);
+  double get totalSpent => budgets.fold(0, (acc, b) => acc + b.currentSpent);
+  double get totalLimit => budgets.fold(0, (acc, b) => acc + b.monthlyLimit);
 
   @override
   List<Object?> get props => [budgets, isLoading, error];
@@ -27,9 +27,10 @@ class BudgetCubit extends Cubit<BudgetState> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   StreamSubscription? _budgetSub;
+  StreamSubscription? _authSub;
 
   BudgetCubit() : super(const BudgetState()) {
-    _auth.authStateChanges().listen((user) {
+    _authSub = _auth.authStateChanges().listen((user) {
       _budgetSub?.cancel();
       if (user != null) {
         _listenToBudgets(user.uid);
@@ -123,6 +124,7 @@ class BudgetCubit extends Cubit<BudgetState> {
   @override
   Future<void> close() {
     _budgetSub?.cancel();
+    _authSub?.cancel();
     return super.close();
   }
 }

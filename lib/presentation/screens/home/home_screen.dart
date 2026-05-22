@@ -1,4 +1,6 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -102,7 +104,7 @@ class _HomeScreenState extends State<HomeScreen>
                             children: [
                               // Animated avatar with gradient ring
                               GestureDetector(
-                                onTap: () {},
+                                onTap: () => context.push('/profile'),
                                 child: Container(
                                   padding: const EdgeInsets.all(2.5),
                                   decoration: const BoxDecoration(
@@ -287,13 +289,19 @@ class _HomeScreenState extends State<HomeScreen>
                                                 ),
                                               ),
                                               const Spacer(),
-                                              Container(
-                                                padding: const EdgeInsets.all(6),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.white.withValues(alpha: 0.15),
-                                                  borderRadius: BorderRadius.circular(10),
+                                              GestureDetector(
+                                                onTap: () {
+                                                  HapticFeedback.lightImpact();
+                                                  context.push('/wallets');
+                                                },
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(6),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white.withValues(alpha: 0.15),
+                                                    borderRadius: BorderRadius.circular(10),
+                                                  ),
+                                                  child: const Icon(Icons.more_horiz_rounded, size: 18, color: Colors.white),
                                                 ),
-                                                child: const Icon(Icons.more_horiz_rounded, size: 18, color: Colors.white),
                                               ),
                                             ],
                                           ),
@@ -411,6 +419,7 @@ class _HomeScreenState extends State<HomeScreen>
                                     progressColors: const [Color(0xFF4ECDC4), Color(0xFF006A65)],
                                     bgColor: const Color(0xFFF0FBF9),
                                     iconColor: const Color(0xFF4ECDC4),
+                                    onTap: () => context.push('/advanced-analytics'),
                                   )),
                                   const SizedBox(width: 12),
                                   Expanded(child: _QuickActionCard(
@@ -421,6 +430,7 @@ class _HomeScreenState extends State<HomeScreen>
                                     progressColors: const [Color(0xFFFF6B6B), Color(0xFFF0B27A)],
                                     bgColor: const Color(0xFFFFF5F5),
                                     iconColor: const Color(0xFFFF6B6B),
+                                    onTap: () => context.push('/friends'),
                                   )),
                                 ],
                               ),
@@ -458,27 +468,33 @@ class _HomeScreenState extends State<HomeScreen>
                                       final cat = ExpenseCategory.values[index];
                                       return Padding(
                                         padding: const EdgeInsets.symmetric(horizontal: 4),
-                                        child: Column(
-                                          children: [
-                                            Container(
-                                              width: 56, height: 56,
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                gradient: LinearGradient(
-                                                  begin: Alignment.topLeft,
-                                                  end: Alignment.bottomRight,
-                                                  colors: [cat.color.withValues(alpha: 0.15), cat.color.withValues(alpha: 0.05)],
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            HapticFeedback.lightImpact();
+                                            context.push('/expenses', extra: {'category': cat.name});
+                                          },
+                                          child: Column(
+                                            children: [
+                                              Container(
+                                                width: 56, height: 56,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  gradient: LinearGradient(
+                                                    begin: Alignment.topLeft,
+                                                    end: Alignment.bottomRight,
+                                                    colors: [cat.color.withValues(alpha: 0.15), cat.color.withValues(alpha: 0.05)],
+                                                  ),
+                                                  border: Border.all(color: cat.color.withValues(alpha: 0.2)),
                                                 ),
-                                                border: Border.all(color: cat.color.withValues(alpha: 0.2)),
+                                                child: Icon(cat.icon, size: 24, color: cat.color),
                                               ),
-                                              child: Icon(cat.icon, size: 24, color: cat.color),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(cat.label, style: TextStyle(
-                                              fontFamily: 'Inter', fontSize: 11,
-                                              fontWeight: FontWeight.w500, color: AppColors.onSurfaceVariant,
-                                            )),
-                                          ],
+                                              const SizedBox(height: 6),
+                                              Text(cat.label, style: TextStyle(
+                                                fontFamily: 'Inter', fontSize: 11,
+                                                fontWeight: FontWeight.w500, color: AppColors.onSurfaceVariant,
+                                              )),
+                                            ],
+                                          ),
                                         ),
                                       );
                                     },
@@ -589,7 +605,7 @@ class _HomeScreenState extends State<HomeScreen>
                                         child: _VibrantExpenseCard(
                                           expense: expense,
                                           category: category,
-                                          onTap: () => context.push('/expense-detail', extra: expense.id),
+                                          onTap: () => context.push('/expense-detail/${expense.id}'),
                                         ),
                                       ),
                                     );
@@ -693,64 +709,86 @@ class _BalanceStat extends StatelessWidget {
   }
 }
 
-class _QuickActionCard extends StatelessWidget {
+class _QuickActionCard extends StatefulWidget {
   final String title, subtitle, trailing;
   final double progressValue;
   final List<Color> progressColors;
   final Color bgColor;
   final Color iconColor;
+  final VoidCallback? onTap;
 
   const _QuickActionCard({
     required this.title, required this.subtitle,
     required this.trailing, required this.progressValue,
     required this.progressColors, required this.bgColor,
-    required this.iconColor,
+    required this.iconColor, this.onTap,
   });
 
   @override
+  State<_QuickActionCard> createState() => _QuickActionCardState();
+}
+
+class _QuickActionCardState extends State<_QuickActionCard> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: iconColor.withValues(alpha: 0.12)),
-        boxShadow: [
-          BoxShadow(
-            color: iconColor.withValues(alpha: 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTapDown: (_) { if (widget.onTap != null) setState(() => _pressed = true); },
+      onTapUp: (_) {
+        if (widget.onTap != null) {
+          setState(() => _pressed = false);
+          widget.onTap!();
+        }
+      },
+      onTapCancel: () { if (widget.onTap != null) setState(() => _pressed = false); },
+      child: AnimatedScale(
+        scale: _pressed ? 0.96 : 1.0,
+        duration: const Duration(milliseconds: 150),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: widget.bgColor,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: widget.iconColor.withValues(alpha: 0.12)),
+            boxShadow: [
+              BoxShadow(
+                color: widget.iconColor.withValues(alpha: 0.06),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: TextStyle(
-            fontFamily: 'Inter', fontSize: 14,
-            color: AppColors.onSurfaceVariant.withValues(alpha: 0.85),
-          )),
-          const SizedBox(height: 4),
-          Text(subtitle, style: const TextStyle(
-            fontFamily: 'Manrope', fontSize: 22, fontWeight: FontWeight.w800,
-            color: AppColors.onSurface,
-          )),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progressValue,
-              backgroundColor: iconColor.withValues(alpha: 0.1),
-              valueColor: AlwaysStoppedAnimation(iconColor),
-              minHeight: 6,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(widget.title, style: TextStyle(
+                fontFamily: 'Inter', fontSize: 14,
+                color: AppColors.onSurfaceVariant.withValues(alpha: 0.85),
+              )),
+              const SizedBox(height: 4),
+              Text(widget.subtitle, style: const TextStyle(
+                fontFamily: 'Manrope', fontSize: 22, fontWeight: FontWeight.w800,
+                color: AppColors.onSurface,
+              )),
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: widget.progressValue,
+                  backgroundColor: widget.iconColor.withValues(alpha: 0.1),
+                  valueColor: AlwaysStoppedAnimation(widget.iconColor),
+                  minHeight: 6,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(widget.trailing, style: TextStyle(
+                fontFamily: 'Inter', fontSize: 12,
+                color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
+              )),
+            ],
           ),
-          const SizedBox(height: 6),
-          Text(trailing, style: TextStyle(
-            fontFamily: 'Inter', fontSize: 12,
-            color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
-          )),
-        ],
+        ),
       ),
     );
   }
@@ -778,6 +816,7 @@ class _VibrantExpenseCardState extends State<_VibrantExpenseCard> {
   Widget build(BuildContext context) {
     final expense = widget.expense;
     final cat = widget.category;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
@@ -786,90 +825,97 @@ class _VibrantExpenseCardState extends State<_VibrantExpenseCard> {
       child: AnimatedScale(
         scale: _pressed ? 0.97 : 1.0,
         duration: const Duration(milliseconds: 150),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: cat.color.withValues(alpha: 0.1)),
-            boxShadow: [
-              BoxShadow(
-                color: cat.color.withValues(alpha: 0.06),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              // Category icon with gradient bg
-              Container(
-                width: 56, height: 56,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [cat.color.withValues(alpha: 0.15), cat.color.withValues(alpha: 0.05)],
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF141A19).withValues(alpha: 0.7)
+                    : Colors.white.withValues(alpha: 0.75),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: cat.color.withValues(alpha: isDark ? 0.15 : 0.1)),
+                boxShadow: [
+                  BoxShadow(
+                    color: cat.color.withValues(alpha: 0.04),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
                   ),
-                ),
-                child: Center(child: Icon(cat.icon, color: cat.color, size: 26)),
+                ],
               ),
-              const SizedBox(width: 14),
-              // Details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      expense.note ?? cat.label,
-                      style: const TextStyle(
-                        fontFamily: 'Inter', fontSize: 16,
-                        fontWeight: FontWeight.w600, color: AppColors.onSurface,
+              child: Row(
+                children: [
+                  // Category icon with gradient bg
+                  Container(
+                    width: 56, height: 56,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [cat.color.withValues(alpha: 0.15), cat.color.withValues(alpha: 0.05)],
                       ),
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    Row(
+                    child: Center(child: Icon(cat.icon, color: cat.color, size: 26)),
+                  ),
+                  const SizedBox(width: 14),
+                  // Details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: cat.color.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(8),
+                        Text(
+                          expense.note ?? cat.label,
+                          style: const TextStyle(
+                            fontFamily: 'Inter', fontSize: 16,
+                            fontWeight: FontWeight.w600, color: AppColors.onSurface,
                           ),
-                          child: Text(cat.label, style: TextStyle(
-                            fontFamily: 'Inter', fontSize: 11,
-                            fontWeight: FontWeight.w600, color: cat.color,
-                          )),
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(width: 8),
-                        Text(DateFormatter.formatRelative(expense.date), style: TextStyle(
-                          fontFamily: 'Inter', fontSize: 12,
-                          color: AppColors.onSurfaceVariant.withValues(alpha: 0.5),
-                        )),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: cat.color.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(cat.label, style: TextStyle(
+                                fontFamily: 'Inter', fontSize: 11,
+                                fontWeight: FontWeight.w600, color: cat.color,
+                              )),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(DateFormatter.formatRelative(expense.date), style: TextStyle(
+                              fontFamily: 'Inter', fontSize: 12,
+                              color: AppColors.onSurfaceVariant.withValues(alpha: 0.5),
+                            )),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              // Amount
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF6B6B).withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '-${CurrencyFormatter.format(expense.amount)}',
-                  style: const TextStyle(
-                    fontFamily: 'Manrope', fontSize: 15,
-                    fontWeight: FontWeight.w800, color: Color(0xFFFF6B6B),
                   ),
-                ),
+                  // Amount
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF6B6B).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '-${CurrencyFormatter.format(expense.amount)}',
+                      style: const TextStyle(
+                        fontFamily: 'Manrope', fontSize: 15,
+                        fontWeight: FontWeight.w800, color: Color(0xFFFF6B6B),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart';
 
 class LockState extends Equatable {
   final bool isLocked;
@@ -34,6 +35,8 @@ class LockState extends Equatable {
 }
 
 class LockCubit extends Cubit<LockState> {
+  final LocalAuthentication _auth = LocalAuthentication();
+
   LockCubit() : super(const LockState()) {
     _init();
   }
@@ -64,16 +67,47 @@ class LockCubit extends Cubit<LockState> {
     emit(state.copyWith(isEnabled: false, useBiometric: false, isLocked: false));
   }
 
-  Future<void> toggleBiometric(bool value) async {
+  Future<bool> toggleBiometric(bool value) async {
+    if (value) {
+      try {
+        final isAvailable = await _auth.canCheckBiometrics || await _auth.isDeviceSupported();
+        if (!isAvailable) {
+          return false;
+        }
+      } catch (e) {
+        return false;
+      }
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('use_biometric', value);
     emit(state.copyWith(useBiometric: value));
+    return true;
   }
 
   Future<bool> authenticate() async {
     if (!state.isEnabled) {
       emit(state.copyWith(isLocked: false));
       return true;
+    }
+    if (state.useBiometric) {
+      try {
+        final isAvailable = await _auth.canCheckBiometrics || await _auth.isDeviceSupported();
+        if (isAvailable) {
+          final didAuthenticate = await _auth.authenticate(
+            localizedReason: 'Vui lòng xác thực để mở khóa ứng dụng PicFi',
+            options: const AuthenticationOptions(
+              stickyAuth: true,
+              biometricOnly: false,
+            ),
+          );
+          if (didAuthenticate) {
+            emit(state.copyWith(isLocked: false));
+            return true;
+          }
+        }
+      } catch (e) {
+        // Fallback silently to PIN screen
+      }
     }
     return false;
   }

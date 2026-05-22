@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -61,11 +62,12 @@ class AuthState extends Equatable {
 class AuthCubit extends Cubit<AuthState> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  StreamSubscription? _authSub;
 
   bool _isSigningUp = false;
 
   AuthCubit() : super(const AuthState()) {
-    _auth.authStateChanges().listen((User? user) async {
+    _authSub = _auth.authStateChanges().listen((User? user) async {
       if (_isSigningUp) return;
       if (user != null) {
         await _loadUserProfile(user);
@@ -120,12 +122,11 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> signInWithEmail(String email, String password) async {
     emit(state.copyWith(isLoading: true, error: null));
     try {
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
-      final user = _auth.currentUser;
-      if (user != null && !user.emailVerified) {
-        await _auth.signOut();
-        emit(state.copyWith(isLoading: false, error: 'Vui lòng xác nhận email trước khi đăng nhập'));
-        return;
+      final cred = await _auth.signInWithEmailAndPassword(email: email, password: password);
+      final user = cred.user ?? _auth.currentUser;
+      if (user != null) {
+        emit(state.copyWith(isLoading: false, isAuthenticated: true, userId: user.uid, email: user.email));
+        _loadUserProfile(user);
       }
     } on FirebaseAuthException catch (e) {
       String msg;
@@ -206,10 +207,6 @@ class AuthCubit extends Cubit<AuthState> {
     } else {
       await signInWithPicfiId(input, password);
     }
-    if (_auth.currentUser != null && !_auth.currentUser!.emailVerified) {
-      await _auth.signOut();
-      emit(state.copyWith(isLoading: false, error: 'Vui lòng xác nhận email trước khi đăng nhập'));
-    }
   }
 
   Future<void> signInWithGoogle() async {
@@ -285,14 +282,14 @@ class AuthCubit extends Cubit<AuthState> {
         });
       }
 
-      // Send verification email
-      await _auth.currentUser?.sendEmailVerification();
-      await _auth.signOut();
       _isSigningUp = false;
       emit(state.copyWith(
         isLoading: false,
-        emailVerificationSent: true,
+        isAuthenticated: true,
+        userId: cred.user?.uid,
         email: email,
+        picfiId: trimmedId,
+        displayName: name,
       ));
       return;
     } on FirebaseAuthException catch (e) {
@@ -353,5 +350,11 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> signOut() async {
     await NotificationService.removeToken(state.userId ?? '');
     await _auth.signOut();
+  }
+
+  @override
+  Future<void> close() {
+    _authSub?.cancel();
+    return super.close();
   }
 }

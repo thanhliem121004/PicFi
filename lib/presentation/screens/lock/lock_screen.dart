@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
 import '../../blocs/lock/lock_cubit.dart';
 
 class LockScreen extends StatefulWidget {
@@ -34,7 +36,7 @@ class _LockScreenState extends State<LockScreen> {
 
   Future<void> _tryBiometric() async {
     final result = await context.read<LockCubit>().authenticate();
-    if (result && mounted) Navigator.pop(context);
+    if (result && mounted) _handleUnlockSuccess();
   }
 
   void _onPinDigit(String digit) {
@@ -91,13 +93,26 @@ class _LockScreenState extends State<LockScreen> {
   Future<void> _verifyPin() async {
     final valid = await context.read<LockCubit>().verifyPin(_pin);
     if (valid) {
-      if (mounted) Navigator.pop(context);
+      if (mounted) _handleUnlockSuccess();
     } else {
       setState(() {
         _showError = true;
         _pin = '';
         HapticFeedback.heavyImpact();
       });
+    }
+  }
+
+  void _handleUnlockSuccess() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        context.go('/main');
+      } else {
+        context.go('/login');
+      }
     }
   }
 

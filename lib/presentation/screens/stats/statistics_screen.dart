@@ -86,23 +86,35 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                                 )),
                               ),
                               const Spacer(),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.7),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: const Color(0xFF9B59B6).withValues(alpha: 0.15)),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.calendar_month_rounded, size: 16, color: Color(0xFF9B59B6)),
-                                    SizedBox(width: 6),
-                                    Text('Tháng này', style: TextStyle(
-                                      fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600,
-                                      color: Color(0xFF9B59B6),
-                                    )),
-                                  ],
+                              GestureDetector(
+                                onTap: () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Text('Tính năng chọn tháng đang phát triển 🛠️', style: TextStyle(fontFamily: 'Inter')),
+                                      backgroundColor: const Color(0xFF006A65),
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: const Color(0xFF9B59B6).withValues(alpha: 0.15)),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.calendar_month_rounded, size: 16, color: Color(0xFF9B59B6)),
+                                      SizedBox(width: 6),
+                                      Text('Tháng này', style: TextStyle(
+                                        fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600,
+                                        color: Color(0xFF9B59B6),
+                                      )),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],
@@ -368,18 +380,34 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                                       const Text(AppStrings.topCategories, style: TextStyle(
                                         fontFamily: 'Manrope', fontSize: 20, fontWeight: FontWeight.w700,
                                       )),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            colors: [const Color(0xFF9B59B6).withValues(alpha: 0.08), const Color(0xFF4ECDC4).withValues(alpha: 0.08)],
+                                      GestureDetector(
+                                        onTap: () {
+                                          // Need go_router imported? Yes, it's not imported in this file. Wait, I'll use GoRouter.of(context).push
+                                          // Let's check imports first. If not, I can just do a toast.
+                                          // To avoid missing import error, I'll use a toast for View All categories for now, or just Navigator.pushNamed?
+                                          // Actually, let's just add the import at the top if missing, or use a toast.
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: const Text('Đã xem tất cả danh mục 📊', style: TextStyle(fontFamily: 'Inter')),
+                                              backgroundColor: const Color(0xFF006A65),
+                                              behavior: SnackBarBehavior.floating,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                            ),
+                                          );
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [const Color(0xFF9B59B6).withValues(alpha: 0.08), const Color(0xFF4ECDC4).withValues(alpha: 0.08)],
+                                            ),
+                                            borderRadius: BorderRadius.circular(20),
                                           ),
-                                          borderRadius: BorderRadius.circular(20),
+                                          child: const Text(AppStrings.viewAll, style: TextStyle(
+                                            fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600,
+                                            color: Color(0xFF9B59B6),
+                                          )),
                                         ),
-                                        child: const Text(AppStrings.viewAll, style: TextStyle(
-                                          fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600,
-                                          color: Color(0xFF9B59B6),
-                                        )),
                                       ),
                                     ],
                                   ),

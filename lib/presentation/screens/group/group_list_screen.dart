@@ -275,7 +275,7 @@ class _GroupListScreenState extends State<GroupListScreen>
                             child: _GroupCard(
                               group: group,
                               balance: balance,
-                              onTap: () => context.push('/group-detail', extra: group.id),
+                              onTap: () => context.push('/group-detail/${group.id}'),
                               onLongPress: () {
                                 HapticFeedback.mediumImpact();
                                 showDialog(

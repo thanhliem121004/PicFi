@@ -16,6 +16,13 @@ import '../../presentation/screens/wallet/wallet_screen.dart';
 import '../../presentation/screens/group/group_list_screen.dart';
 import '../../presentation/screens/group/group_detail_screen.dart';
 import '../../presentation/screens/notifications/notifications_screen.dart';
+import '../../presentation/screens/premium/premium_screen.dart';
+import '../../presentation/screens/ai/ai_chat_screen.dart';
+import '../../presentation/screens/ai/ocr_scanner_screen.dart';
+import '../../presentation/screens/analytics/advanced_analytics_screen.dart';
+import '../../presentation/screens/lock/lock_screen.dart';
+import '../../presentation/screens/lock/lock_settings_screen.dart';
+import '../../presentation/screens/backup/backup_screen.dart';
 import '../../domain/entities/expense_entity.dart';
 
 class AppRouter {
@@ -43,6 +50,14 @@ class AppRouter {
       GoRoute(path: '/groups', builder: (context, state) => const GroupListScreen()),
       GoRoute(path: '/notifications', builder: (context, state) => const NotificationsScreen()),
       GoRoute(path: '/group-detail/:id', builder: (context, state) { return GroupDetailScreen(groupId: state.pathParameters['id'] ?? ''); }),
+      GoRoute(path: '/premium', builder: (context, state) => const PremiumScreen()),
+      GoRoute(path: '/ai-chat', builder: (context, state) => const AIChatScreen()),
+      GoRoute(path: '/ocr-scanner', builder: (context, state) => const OcrScannerScreen()),
+      GoRoute(path: '/advanced-analytics', builder: (context, state) => const AdvancedAnalyticsScreen()),
+      GoRoute(path: '/lock-settings', builder: (context, state) => const LockSettingsScreen()),
+      GoRoute(path: '/lock-setup', builder: (context, state) => const LockScreen(isSetup: true)),
+      GoRoute(path: '/lock-verify', builder: (context, state) => const LockScreen(isSetup: false)),
+      GoRoute(path: '/backup', builder: (context, state) => const BackupScreen()),
     ],
   );
 }

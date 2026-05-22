@@ -94,9 +94,9 @@ class SmartNotificationService {
           .limit(20)
           .get();
 
-      final total = snap.docs.fold<double>(0, (sum, doc) {
+      final total = snap.docs.fold<double>(0, (acc, doc) {
         final data = doc.data();
-        return sum + ((data['amount'] as num?)?.toDouble() ?? 0);
+        return acc + ((data['amount'] as num?)?.toDouble() ?? 0);
       });
 
       await _sendNotification(

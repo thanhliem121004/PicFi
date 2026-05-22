@@ -49,6 +49,8 @@ class _OcrScannerScreenState extends State<OcrScannerScreen>
       return;
     }
 
+    final aiCubit = context.read<AICubit>();
+
     final picked = await ImagePicker().pickImage(
       source: source,
       imageQuality: 80,
@@ -58,7 +60,7 @@ class _OcrScannerScreenState extends State<OcrScannerScreen>
     if (picked != null) {
       setState(() => _image = File(picked.path));
       HapticFeedback.mediumImpact();
-      context.read<AICubit>().scanReceipt(picked.path);
+      aiCubit.scanReceipt(picked.path);
     }
   }
 

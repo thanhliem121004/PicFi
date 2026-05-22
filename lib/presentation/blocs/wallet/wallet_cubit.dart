@@ -38,6 +38,7 @@ class WalletCubit extends Cubit<WalletState> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   StreamSubscription? _walletSub;
+  StreamSubscription? _authSub;
 
   WalletCubit() : super(const WalletState()) {
     _listenToWallets();
@@ -49,7 +50,7 @@ class WalletCubit extends Cubit<WalletState> {
       _firestore.collection('users').doc(_uid).collection('wallets');
 
   void _listenToWallets() {
-    _auth.authStateChanges().listen((user) {
+    _authSub = _auth.authStateChanges().listen((user) {
       _walletSub?.cancel();
       if (user != null) {
         _walletSub = _firestore
@@ -118,6 +119,7 @@ class WalletCubit extends Cubit<WalletState> {
   @override
   Future<void> close() {
     _walletSub?.cancel();
+    _authSub?.cancel();
     return super.close();
   }
 }

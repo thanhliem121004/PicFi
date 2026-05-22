@@ -76,7 +76,9 @@ class NotificationService {
 
     switch (type) {
       case 'expense':
-        AppRouter.router.go('/expense-detail', extra: id ?? '');
+        if (id != null && id.isNotEmpty) {
+          AppRouter.router.push('/expense-detail/$id');
+        }
         break;
       case 'profile':
         if (id != null) AppRouter.router.go('/profile/$id');

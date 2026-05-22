@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 
@@ -101,11 +102,24 @@ class _SplashScreenState extends State<SplashScreen>
     Future.delayed(const Duration(milliseconds: 3200), () async {
       if (!mounted) return;
       final prefs = await SharedPreferences.getInstance();
-      final hasSeen = prefs.getBool('hasSeenOnboarding') ?? false;
-      if (hasSeen) {
-        context.go('/login');
+      final pin = prefs.getString('app_pin');
+      final isLockEnabled = pin != null && pin.isNotEmpty;
+      if (!mounted) return;
+
+      if (isLockEnabled) {
+        context.go('/lock-verify');
       } else {
-        context.go('/onboarding');
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          context.go('/main');
+        } else {
+          final hasSeen = prefs.getBool('hasSeenOnboarding') ?? false;
+          if (hasSeen) {
+            context.go('/login');
+          } else {
+            context.go('/onboarding');
+          }
+        }
       }
     });
   }

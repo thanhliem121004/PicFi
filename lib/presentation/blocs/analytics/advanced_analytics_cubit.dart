@@ -126,11 +126,21 @@ class AdvancedAnalyticsCubit extends Cubit<AdvancedAnalyticsState> {
         );
       }).toList();
 
-      final monthlyTrends = _calculateMonthlyTrends(expenses);
+      final incomeDoc = await _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('settings')
+          .doc('income')
+          .get();
+      final monthlyIncome = incomeDoc.exists
+          ? (incomeDoc.data()?['amount'] as num?)?.toDouble() ?? 24000000.0
+          : 24000000.0;
+
+      final monthlyTrends = _calculateMonthlyTrends(expenses, monthlyIncome);
       final categoryBreakdown = _calculateCategoryBreakdown(expenses);
 
-      final totalExpense = expenses.fold<double>(0, (sum, e) => sum + e.amount);
-      final totalIncome = 24000000.0 * 6;
+      final totalExpense = expenses.fold<double>(0, (acc, e) => acc + e.amount);
+      final totalIncome = monthlyIncome * 6;
 
       final predicted = _predictNextMonth(monthlyTrends);
 
@@ -150,7 +160,7 @@ class AdvancedAnalyticsCubit extends Cubit<AdvancedAnalyticsState> {
     }
   }
 
-  List<MonthlyTrend> _calculateMonthlyTrends(List<ExpenseEntity> expenses) {
+  List<MonthlyTrend> _calculateMonthlyTrends(List<ExpenseEntity> expenses, double monthlyIncome) {
     final grouped = <String, double>{};
     for (final expense in expenses) {
       final key = 'Thg ${expense.date.month}, ${expense.date.year}';
@@ -160,7 +170,7 @@ class AdvancedAnalyticsCubit extends Cubit<AdvancedAnalyticsState> {
     return grouped.entries.map((entry) {
       return MonthlyTrend(
         month: entry.key,
-        income: 24000000,
+        income: monthlyIncome,
         expense: entry.value,
       );
     }).toList()
@@ -197,9 +207,9 @@ class AdvancedAnalyticsCubit extends Cubit<AdvancedAnalyticsState> {
 
   double _predictNextMonth(List<MonthlyTrend> trends) {
     if (trends.isEmpty) return 0;
-    final total = trends.fold<double>(0, (sum, t) => sum + t.expense);
+    final total = trends.fold<double>(0, (acc, t) => acc + t.expense);
     final avg = total / trends.length;
-    final variance = trends.fold<double>(0, (sum, t) => sum + (t.expense - avg) * (t.expense - avg));
+    final variance = trends.fold<double>(0, (acc, t) => acc + (t.expense - avg) * (t.expense - avg));
     final stdDev = variance > 0 ? variance / trends.length : 0;
     return avg + stdDev * 0.3;
   }

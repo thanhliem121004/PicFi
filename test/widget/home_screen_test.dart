@@ -74,6 +74,9 @@ class MockExpenseCubit extends Cubit<ExpenseState> implements ExpenseCubit {
 
   @override
   Future<void> refresh() async {}
+
+  @override
+  Future<void> setIncome(double amount) async {}
 }
 
 Widget createTestApp(ExpenseCubit expenseCubit) {

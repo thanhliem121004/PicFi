@@ -36,6 +36,7 @@ class RecurringCubit extends Cubit<RecurringState> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   StreamSubscription? _recurringSub;
+  StreamSubscription? _authSub;
   Timer? _checkTimer;
 
   RecurringCubit() : super(const RecurringState()) {
@@ -49,7 +50,7 @@ class RecurringCubit extends Cubit<RecurringState> {
       _firestore.collection('users').doc(_uid).collection('recurring');
 
   void _listenToRecurring() {
-    _auth.authStateChanges().listen((user) {
+    _authSub = _auth.authStateChanges().listen((user) {
       _recurringSub?.cancel();
       if (user != null) {
         _recurringSub = _firestore
@@ -74,8 +75,7 @@ class RecurringCubit extends Cubit<RecurringState> {
   }
 
   void _startAutoCheck() {
-    _checkTimer = Timer.periodic(const Duration(hours: 1), (_) => _checkDue());
-    _checkTimer = Timer.periodic(const Duration(minutes: 5), (_) => _checkDue());
+    _checkTimer = Timer.periodic(const Duration(minutes: 15), (_) => _checkDue());
   }
 
   Future<void> _checkDue() async {
@@ -139,6 +139,7 @@ class RecurringCubit extends Cubit<RecurringState> {
   Future<void> close() {
     _checkTimer?.cancel();
     _recurringSub?.cancel();
+    _authSub?.cancel();
     return super.close();
   }
 }

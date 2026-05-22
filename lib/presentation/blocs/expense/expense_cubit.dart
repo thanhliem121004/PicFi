@@ -58,6 +58,7 @@ class ExpenseCubit extends Cubit<ExpenseState> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   StreamSubscription? _expenseSub;
+  StreamSubscription? _authSub;
   DocumentSnapshot? _lastDoc;
   bool _hasMore = true;
 
@@ -71,7 +72,7 @@ class ExpenseCubit extends Cubit<ExpenseState> {
       _firestore.collection('users').doc(_uid).collection('expenses');
 
   void _listenToExpenses() {
-    _auth.authStateChanges().listen((user) {
+    _authSub = _auth.authStateChanges().listen((user) {
       _expenseSub?.cancel();
       _lastDoc = null;
       _hasMore = true;
@@ -105,7 +106,7 @@ class ExpenseCubit extends Cubit<ExpenseState> {
             );
           }).toList();
 
-          final totalExpense = expenses.fold<double>(0, (sum, e) => sum + e.amount);
+          final totalExpense = expenses.fold<double>(0, (acc, e) => acc + e.amount);
 
           emit(state.copyWith(
             expenses: expenses,
@@ -151,7 +152,7 @@ class ExpenseCubit extends Cubit<ExpenseState> {
         );
       }).toList();
       final allExpenses = [...state.expenses, ...newExpenses];
-      final totalExpense = allExpenses.fold<double>(0, (sum, e) => sum + e.amount);
+      final totalExpense = allExpenses.fold<double>(0, (acc, e) => acc + e.amount);
       emit(state.copyWith(
         expenses: allExpenses,
         totalExpense: totalExpense,
@@ -174,6 +175,24 @@ class ExpenseCubit extends Cubit<ExpenseState> {
       }
     } catch (_) {
       emit(state.copyWith(totalIncome: 0));
+    }
+  }
+
+  Future<void> setIncome(double amount) async {
+    if (_uid == null) return;
+    try {
+      await _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('settings')
+          .doc('income')
+          .set({
+        'amount': amount,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      emit(state.copyWith(totalIncome: amount));
+    } catch (e) {
+      emit(state.copyWith(error: 'Lỗi lưu thu nhập: $e'));
     }
   }
 
@@ -318,7 +337,7 @@ class ExpenseCubit extends Cubit<ExpenseState> {
           );
         }).toList();
 
-        final totalExpense = expenses.fold<double>(0, (sum, e) => sum + e.amount);
+        final totalExpense = expenses.fold<double>(0, (acc, e) => acc + e.amount);
 
         emit(state.copyWith(
           expenses: expenses,
@@ -335,6 +354,7 @@ class ExpenseCubit extends Cubit<ExpenseState> {
   @override
   Future<void> close() {
     _expenseSub?.cancel();
+    _authSub?.cancel();
     return super.close();
   }
 }

@@ -49,9 +49,9 @@ class CurrencyFormatter {
       if (usdAmount >= 1000) return '\$${(usdAmount / 1000).toStringAsFixed(0)}K';
       return '\$${usdAmount.toStringAsFixed(2)}';
     }
-    if (abs >= 1000000) return '${(abs / 1000000).toStringAsFixed(1)}M đ';
-    if (abs >= 1000) return '${(abs / 1000).toStringAsFixed(0)}K đ';
-    return '${abs.toStringAsFixed(0)} đ';
+    if (abs >= 1000000) return '${(abs / 1000000).toStringAsFixed(1)}M ${_symbol(currency)}';
+    if (abs >= 1000) return '${(abs / 1000).toStringAsFixed(0)}K ${_symbol(currency)}';
+    return '${_formatter.format(abs)} ${_symbol(currency)}';
   }
 
   static String formatOverlay(double amount, {String currency = 'VND'}) {

@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -135,99 +136,102 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             ],
           ),
           extendBody: true,
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: isDark
-                ? [
-                    const Color(0xFF1A201F).withValues(alpha: 0.95),
-                    const Color(0xFF1A201F).withValues(alpha: 0.98),
-                  ]
-                : [
-                    Colors.white.withValues(alpha: 0.85),
-                    Colors.white.withValues(alpha: 0.95),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(32),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF0F1413).withValues(alpha: 0.8)
+                      : Colors.white.withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(
+                    color: (isDark ? Colors.white : const Color(0xFF006A65))
+                        .withValues(alpha: 0.12),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
                   ],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: _navColors[_currentIndex].withValues(alpha: 0.08),
-              blurRadius: 20,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _VibrantNavItem(
-                  icon: Icons.home_rounded,
-                  label: AppStrings.home,
-                  color: _navColors[0],
-                  isActive: _currentIndex == 0,
-                  onTap: () => _switchTab(0),
                 ),
-                _VibrantNavItem(
-                  icon: Icons.dynamic_feed_rounded,
-                  label: 'Bảng tin',
-                  color: _navColors[1],
-                  isActive: _currentIndex == 1,
-                  onTap: () => _switchTab(1),
-                ),
-                // Center FAB
-                AnimatedBuilder(
-                  animation: Listenable.merge([_fabController, _fabPulse]),
-                  builder: (context, _) {
-                    return Transform.scale(
-                      scale: _fabScale.value,
-                      child: GestureDetector(
-                        onTap: () {
-                          HapticFeedback.mediumImpact();
-                          context.push('/add-expense');
-                        },
-                        child: Container(
-                          width: 62,
-                          height: 62,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [Color(0xFF006A65), Color(0xFF4ECDC4)],
-                            ),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF006A65).withValues(alpha: 0.35),
-                                blurRadius: 18 * _pulse.value,
-                                offset: const Offset(0, 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _VibrantNavItem(
+                      icon: Icons.home_rounded,
+                      label: AppStrings.home,
+                      color: _navColors[0],
+                      isActive: _currentIndex == 0,
+                      onTap: () => _switchTab(0),
+                    ),
+                    _VibrantNavItem(
+                      icon: Icons.dynamic_feed_rounded,
+                      label: 'Bảng tin',
+                      color: _navColors[1],
+                      isActive: _currentIndex == 1,
+                      onTap: () => _switchTab(1),
+                    ),
+                    // Center FAB
+                    AnimatedBuilder(
+                      animation: Listenable.merge([_fabController, _fabPulse]),
+                      builder: (context, _) {
+                        return Transform.scale(
+                          scale: _fabScale.value,
+                          child: GestureDetector(
+                            onTap: () {
+                              HapticFeedback.mediumImpact();
+                              context.push('/add-expense');
+                            },
+                            child: Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [Color(0xFF006A65), Color(0xFF4ECDC4)],
+                                ),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF006A65).withValues(alpha: 0.35),
+                                    blurRadius: 14 * _pulse.value,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
                               ),
-                            ],
+                              child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+                            ),
                           ),
-                          child: const Icon(Icons.add_rounded, color: Colors.white, size: 32),
-                        ),
-                      ),
-                    );
-                  },
+                        );
+                      },
+                    ),
+                    _VibrantNavItem(
+                      icon: Icons.bar_chart_rounded,
+                      label: AppStrings.charts,
+                      color: _navColors[3],
+                      isActive: _currentIndex == 3,
+                      onTap: () => _switchTab(3),
+                    ),
+                    _VibrantNavItem(
+                      icon: Icons.person_rounded,
+                      label: AppStrings.profile,
+                      color: _navColors[4],
+                      isActive: _currentIndex == 4,
+                      onTap: () => _switchTab(4),
+                    ),
+                  ],
                 ),
-                _VibrantNavItem(
-                  icon: Icons.bar_chart_rounded,
-                  label: AppStrings.charts,
-                  color: _navColors[3],
-                  isActive: _currentIndex == 3,
-                  onTap: () => _switchTab(3),
-                ),
-                _VibrantNavItem(
-                  icon: Icons.person_rounded,
-                  label: AppStrings.profile,
-                  color: _navColors[4],
-                  isActive: _currentIndex == 4,
-                  onTap: () => _switchTab(4),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -264,42 +268,47 @@ class _VibrantNavItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutCubic,
-              padding: EdgeInsets.symmetric(
-                horizontal: isActive ? 16 : 0,
-                vertical: isActive ? 6 : 4,
+      child: AnimatedScale(
+        scale: isActive ? 1.12 : 1.0,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutBack,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeOutCubic,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isActive ? 14 : 0,
+                  vertical: isActive ? 5 : 3,
+                ),
+                decoration: BoxDecoration(
+                  color: isActive ? color.withValues(alpha: 0.15) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  icon,
+                  size: isActive ? 24 : 22,
+                  color: isActive ? color : AppColors.outline,
+                ),
               ),
-              decoration: BoxDecoration(
-                color: isActive ? color.withValues(alpha: 0.12) : Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
+              const SizedBox(height: 2),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 250),
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: isActive ? 11 : 10,
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                  color: isActive ? color : AppColors.outline,
+                ),
+                child: Text(label),
               ),
-              child: Icon(
-                icon,
-                size: isActive ? 26 : 24,
-                color: isActive ? color : AppColors.outline,
-              ),
-            ),
-            const SizedBox(height: 2),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 300),
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: isActive ? 12 : 11,
-                fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
-                color: isActive ? color : AppColors.outline,
-              ),
-              child: Text(label),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

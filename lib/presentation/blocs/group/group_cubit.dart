@@ -42,6 +42,7 @@ class GroupCubit extends Cubit<GroupState> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   StreamSubscription? _groupsSub;
   StreamSubscription? _groupExpensesSub;
+  StreamSubscription? _authSub;
 
   GroupCubit() : super(const GroupState()) {
     _listenToGroups();
@@ -56,7 +57,7 @@ class GroupCubit extends Cubit<GroupState> {
       _firestore.collection('users').doc(_uid).collection('groups').doc(groupId).collection('expenses');
 
   void _listenToGroups() {
-    _auth.authStateChanges().listen((user) {
+    _authSub = _auth.authStateChanges().listen((user) {
       _groupsSub?.cancel();
       _groupExpensesSub?.cancel();
       if (user != null) {
@@ -231,6 +232,7 @@ class GroupCubit extends Cubit<GroupState> {
   Future<void> close() {
     _groupsSub?.cancel();
     _groupExpensesSub?.cancel();
+    _authSub?.cancel();
     return super.close();
   }
 }

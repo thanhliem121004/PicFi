@@ -45,5 +45,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>PicFi cần quyền sử dụng Face ID / Touch ID để khóa và bảo vệ ứng dụng của bạn.</string>
 </dict>
 </plist>

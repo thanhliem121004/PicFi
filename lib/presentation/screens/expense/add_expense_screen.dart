@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/expense_categories.dart';
@@ -24,7 +25,7 @@ class AddExpenseScreen extends StatefulWidget {
 }
 
 class _AddExpenseScreenState extends State<AddExpenseScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController(text: '0');
   final _noteController = TextEditingController();
@@ -38,6 +39,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
   late AnimationController _entryController;
   late Animation<double> _slideUp;
   late Animation<double> _fadeIn;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
@@ -52,6 +55,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
       CurvedAnimation(parent: _entryController, curve: const Interval(0, 0.6, curve: Curves.easeOut)),
     );
     _entryController.forward();
+    
+    _pulseController = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -59,6 +69,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
     _amountController.dispose();
     _noteController.dispose();
     _entryController.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -267,6 +278,37 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                                           fit: StackFit.expand,
                                           children: [
                                             Image.file(_pickedImage!, fit: BoxFit.cover),
+                                            // Locket-style caption preview on top of the image!
+                                            ValueListenableBuilder<TextEditingValue>(
+                                              valueListenable: _noteController,
+                                              builder: (context, value, _) {
+                                                if (value.text.isEmpty) return const SizedBox.shrink();
+                                                return Positioned(
+                                                  bottom: 80, // slightly above the bottom gradient overlay
+                                                  left: 16,
+                                                  right: 16,
+                                                  child: Center(
+                                                    child: Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.black.withValues(alpha: 0.65),
+                                                        borderRadius: BorderRadius.circular(16),
+                                                      ),
+                                                      child: Text(
+                                                        value.text,
+                                                        style: const TextStyle(
+                                                          fontFamily: 'Inter',
+                                                          fontSize: 14,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: Colors.white,
+                                                        ),
+                                                        textAlign: TextAlign.center,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
                                             // Gradient overlay bottom
                                             Positioned(
                                               bottom: 0, left: 0, right: 0,
@@ -334,18 +376,21 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                                           child: Column(
                                             mainAxisAlignment: MainAxisAlignment.center,
                                             children: [
-                                              Container(
-                                                width: 72, height: 72,
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  gradient: LinearGradient(
-                                                    colors: [
-                                                      const Color(0xFF4ECDC4).withValues(alpha: 0.15),
-                                                      const Color(0xFF006A65).withValues(alpha: 0.08),
-                                                    ],
+                                              ScaleTransition(
+                                                scale: _pulseAnimation,
+                                                child: Container(
+                                                  width: 72, height: 72,
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    gradient: LinearGradient(
+                                                      colors: [
+                                                        const Color(0xFF4ECDC4).withValues(alpha: 0.15),
+                                                        const Color(0xFF006A65).withValues(alpha: 0.08),
+                                                      ],
+                                                    ),
                                                   ),
+                                                  child: const Icon(Icons.camera_alt_rounded, size: 32, color: Color(0xFF4ECDC4)),
                                                 ),
-                                                child: const Icon(Icons.camera_alt_rounded, size: 32, color: Color(0xFF4ECDC4)),
                                               ),
                                               const SizedBox(height: 16),
                                               const Text('Chụp ảnh khoảnh khắc', style: TextStyle(
@@ -395,7 +440,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                             offset: Offset(0, _slideUp.value * 0.7),
                             child: Container(
                               margin: const EdgeInsets.symmetric(horizontal: 24),
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(24),
@@ -463,11 +508,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                                       keyboardType: TextInputType.number,
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
-                                        fontFamily: 'Manrope', fontSize: 40, fontWeight: FontWeight.w800,
-                                        color: Color(0xFF2D3436), letterSpacing: -1,
+                                        fontFamily: 'Manrope', fontSize: 26, fontWeight: FontWeight.w800,
+                                        color: Color(0xFF2D3436), letterSpacing: -0.5,
                                       ),
                                       decoration: const InputDecoration(border: InputBorder.none),
-                                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                      inputFormatters: [CurrencyInputFormatter(() => _selectedCurrency)],
                                       onTap: () {
                                         if (_amountController.text == '0') _amountController.clear();
                                       },
@@ -738,7 +783,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                                   ),
                                   Switch(
                                     value: _shareToFeed,
-                                    activeColor: const Color(0xFFFF6B6B),
+                                    activeThumbColor: const Color(0xFFFF6B6B),
                                     onChanged: (v) {
                                       HapticFeedback.selectionClick();
                                       setState(() => _shareToFeed = v);
@@ -778,6 +823,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                             )
                           : GestureDetector(
                               onTap: () async {
+                                final navigator = Navigator.of(context);
                                 final amount = double.tryParse(
                                   _amountController.text.replaceAll('.', '').replaceAll(',', ''),
                                 );
@@ -844,7 +890,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                                 }
                                 _showPremiumToast('Đã lưu chi tiêu! 🎉');
                                 await Future.delayed(const Duration(milliseconds: 500));
-                                if (mounted) context.pop();
+                                navigator.pop();
                               },
                               child: Container(
                                 height: 56,
@@ -959,6 +1005,36 @@ class _CurrencyOption extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class CurrencyInputFormatter extends TextInputFormatter {
+  final String Function() getCurrency;
+  CurrencyInputFormatter(this.getCurrency);
+
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.selection.baseOffset == 0) {
+      return newValue;
+    }
+    
+    // Clean string to digits only
+    String cleaned = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleaned.isEmpty) {
+      return newValue.copyWith(text: '', selection: const TextSelection.collapsed(offset: 0));
+    }
+    
+    final parsed = double.tryParse(cleaned);
+    if (parsed == null) return oldValue;
+    
+    final currency = getCurrency();
+    final formatter = currency == 'USD' ? NumberFormat('#,###', 'en') : NumberFormat('#,###', 'vi');
+    final formatted = formatter.format(parsed);
+    
+    return newValue.copyWith(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

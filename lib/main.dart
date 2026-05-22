@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_strings.dart';
 import 'core/routes/app_router.dart';
@@ -19,6 +20,7 @@ import 'presentation/blocs/premium/premium_cubit.dart';
 import 'presentation/blocs/ai/ai_cubit.dart';
 import 'presentation/blocs/analytics/advanced_analytics_cubit.dart';
 import 'presentation/blocs/connectivity/connectivity_cubit.dart';
+import 'presentation/blocs/lock/lock_cubit.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/offline_service.dart';
 import 'core/services/deep_link_service.dart';
@@ -27,7 +29,7 @@ import 'core/utils/performance.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('vi', null);
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   ImageCacheManager.configure();
 
@@ -61,6 +63,7 @@ class PicFiApp extends StatelessWidget {
         BlocProvider(create: (_) => AICubit()),
         BlocProvider(create: (_) => AdvancedAnalyticsCubit()),
         BlocProvider(create: (_) => ConnectivityCubit()),
+        BlocProvider(create: (_) => LockCubit()),
       ],
       child: BlocBuilder<ThemeCubit, ThemeMode>(
         builder: (context, themeMode) {

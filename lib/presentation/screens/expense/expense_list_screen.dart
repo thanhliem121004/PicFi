@@ -433,7 +433,9 @@ class _ExpenseListScreenState extends State<ExpenseListScreen>
                                             action: SnackBarAction(
                                               label: 'Hoàn tác',
                                               textColor: Colors.white,
-                                              onPressed: () {},
+                                              onPressed: () {
+                                                context.read<ExpenseCubit>().addExpense(expense);
+                                              },
                                             ),
                                           ));
                                         }
@@ -462,7 +464,7 @@ class _ExpenseListScreenState extends State<ExpenseListScreen>
                                       child: _VibrantExpenseCard(
                                         expense: expense,
                                         category: category,
-                                        onTap: () => context.push('/expense-detail', extra: expense.id),
+                                        onTap: () => context.push('/expense-detail/${expense.id}'),
                                       ),
                                     );
                                   },

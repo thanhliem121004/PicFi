@@ -57,11 +57,12 @@ class FriendsCubit extends Cubit<FriendsState> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   StreamSubscription? _friendsSub;
   StreamSubscription? _requestsSub;
+  StreamSubscription? _authSub;
   DocumentSnapshot? _lastFriendDoc;
   bool _hasMoreFriends = true;
 
   FriendsCubit() : super(const FriendsState()) {
-    _auth.authStateChanges().listen((user) {
+    _authSub = _auth.authStateChanges().listen((user) {
       _friendsSub?.cancel();
       _requestsSub?.cancel();
       _lastFriendDoc = null;
@@ -505,6 +506,7 @@ class FriendsCubit extends Cubit<FriendsState> {
   Future<void> close() {
     _friendsSub?.cancel();
     _requestsSub?.cancel();
+    _authSub?.cancel();
     return super.close();
   }
 }

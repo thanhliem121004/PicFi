@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,6 +8,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/expense_categories.dart';
 import '../../../core/utils/currency_formatter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:go_router/go_router.dart';
 import '../../widgets/shimmer_loading.dart';
 
 class FeedScreen extends StatefulWidget {
@@ -225,22 +227,28 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                                     color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
                                   )),
                                   const SizedBox(height: 24),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(colors: [Color(0xFFFF6B6B), Color(0xFFF0B27A)]),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.share_rounded, size: 18, color: Colors.white),
-                                        SizedBox(width: 8),
-                                        Text('Thêm chi tiêu & chia sẻ', style: TextStyle(
-                                          fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w700,
-                                          color: Colors.white,
-                                        )),
-                                      ],
+                                  GestureDetector(
+                                    onTap: () {
+                                      HapticFeedback.lightImpact();
+                                      context.push('/add-expense');
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(colors: [Color(0xFFFF6B6B), Color(0xFFF0B27A)]),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.share_rounded, size: 18, color: Colors.white),
+                                          SizedBox(width: 8),
+                                          Text('Thêm chi tiêu & chia sẻ', style: TextStyle(
+                                            fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                          )),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -308,15 +316,22 @@ class _FeedCard extends StatefulWidget {
   State<_FeedCard> createState() => _FeedCardState();
 }
 
-class _FeedCardState extends State<_FeedCard> {
-  bool _liked = false;
+class _FeedCardState extends State<_FeedCard> with TickerProviderStateMixin {
   bool _fired = false;
   int _fireCount = 0;
+  bool _liked = false;
+  int _likesCount = 0;
+  bool _showHeartAnim = false;
   StreamSubscription? _reactionsSub;
+  late AnimationController _heartAnimController;
+  late Animation<double> _heartScale;
 
   @override
   void initState() {
     super.initState();
+    _likesCount = (widget.data['likes'] as num?)?.toInt() ?? 0;
+    
+    // Check if user already liked/fired
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
       _reactionsSub = FirebaseFirestore.instance
@@ -335,12 +350,84 @@ class _FeedCardState extends State<_FeedCard> {
         });
       });
     }
+
+    _heartAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _heartScale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween<double>(begin: 0.0, end: 1.2).chain(CurveTween(curve: Curves.easeOutBack)), weight: 40),
+      TweenSequenceItem(tween: Tween<double>(begin: 1.2, end: 1.0), weight: 20),
+      TweenSequenceItem(tween: Tween<double>(begin: 1.0, end: 0.0).chain(CurveTween(curve: Curves.easeInBack)), weight: 40),
+    ]).animate(_heartAnimController);
   }
 
   @override
   void dispose() {
     _reactionsSub?.cancel();
+    _heartAnimController.dispose();
     super.dispose();
+  }
+
+  void _likePost() {
+    if (_liked) return;
+    HapticFeedback.heavyImpact();
+    setState(() {
+      _liked = true;
+      _likesCount += 1;
+      _showHeartAnim = true;
+    });
+    _heartAnimController.forward(from: 0.0).then((_) {
+      if (mounted) setState(() => _showHeartAnim = false);
+    });
+    FirebaseFirestore.instance
+        .collection('feed')
+        .doc(widget.docId)
+        .update({'likes': FieldValue.increment(1)});
+  }
+
+  void _toggleLike() {
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (_liked) {
+        _liked = false;
+        _likesCount = (_likesCount - 1).clamp(0, 999999);
+        FirebaseFirestore.instance
+            .collection('feed')
+            .doc(widget.docId)
+            .update({'likes': FieldValue.increment(-1)});
+      } else {
+        _liked = true;
+        _likesCount += 1;
+        _showHeartAnim = true;
+        _heartAnimController.forward(from: 0.0).then((_) {
+          if (mounted) setState(() => _showHeartAnim = false);
+        });
+        FirebaseFirestore.instance
+            .collection('feed')
+            .doc(widget.docId)
+            .update({'likes': FieldValue.increment(1)});
+      }
+    });
+  }
+
+  Future<void> _toggleFire() async {
+    HapticFeedback.mediumImpact();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final ref = FirebaseFirestore.instance
+        .collection('feed')
+        .doc(widget.docId)
+        .collection('reactions')
+        .doc(uid);
+    if (_fired) {
+      await ref.delete();
+    } else {
+      await ref.set({
+        'emoji': '🔥',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
   }
 
   @override
@@ -350,10 +437,8 @@ class _FeedCardState extends State<_FeedCard> {
     final category = data['category'] as String? ?? 'other';
     final note = data['note'] as String? ?? '';
     final userName = data['userName'] as String? ?? 'Ai đó';
-    final userPicfiId = data['userPicfiId'] as String? ?? '';
     final sharedAt = (data['sharedAt'] as Timestamp?)?.toDate() ?? DateTime.now();
     final emoji = data['emoji'] as String? ?? '💸';
-    final likes = (data['likes'] as num?)?.toInt() ?? 0;
     final imageUrl = data['imageUrl'] as String?;
 
     final cat = ExpenseCategory.values.firstWhere(
@@ -368,258 +453,380 @@ class _FeedCardState extends State<_FeedCard> {
       [const Color(0xFF45B7D1), const Color(0xFF4ECDC4)],
     ];
     final gradientIdx = userName.hashCode.abs() % cardColors.length;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: cardColors[gradientIdx][0].withValues(alpha: 0.12),
+            color: (imageUrl != null && imageUrl.isNotEmpty
+                    ? Colors.black
+                    : cardColors[gradientIdx][0])
+                .withValues(alpha: isDark ? 0.4 : 0.12),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Column(
+        borderRadius: BorderRadius.circular(32),
+        child: Stack(
           children: [
-            // Header gradient
-            Container(
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: cardColors[gradientIdx],
-                ),
-              ),
-              child: Row(
-                children: [
-                  // Avatar
-                  Container(
-                    width: 40, height: 40,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.2),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 2),
-                    ),
-                    child: Center(
-                      child: Text(
-                        userName.isNotEmpty ? userName[0].toUpperCase() : '?',
-                        style: const TextStyle(
-                          fontFamily: 'Manrope', fontSize: 18, fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.isMe ? 'Bạn' : userName,
-                          style: const TextStyle(
-                            fontFamily: 'Manrope', fontSize: 16, fontWeight: FontWeight.w700,
-                            color: Colors.white,
+            // 1. Core AspectRatio background
+            GestureDetector(
+              onDoubleTap: _likePost,
+              child: AspectRatio(
+                aspectRatio: 1.0,
+                child: imageUrl != null && imageUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          color: const Color(0xFF0F1413),
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 3,
+                              color: Color(0xFF4ECDC4),
+                            ),
                           ),
                         ),
-                        if (userPicfiId.isNotEmpty)
-                          Text('@$userPicfiId', style: TextStyle(
-                            fontFamily: 'Inter', fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.7),
-                          )),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    _timeAgo(sharedAt),
-                    style: TextStyle(
-                      fontFamily: 'Inter', fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ],
+                        errorWidget: (_, __, ___) => Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: cardColors[gradientIdx],
+                            ),
+                          ),
+                          child: Center(
+                            child: Icon(cat.icon, size: 80, color: Colors.white.withValues(alpha: 0.7)),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: cardColors[gradientIdx],
+                          ),
+                        ),
+                        child: Center(
+                          child: Opacity(
+                            opacity: 0.1,
+                            child: Icon(cat.icon, size: 180, color: Colors.white),
+                          ),
+                        ),
+                      ),
               ),
             ),
-            // Photo (if exists)
-            if (imageUrl != null && imageUrl.isNotEmpty)
-              CachedNetworkImage(
-                imageUrl: imageUrl,
-                width: double.infinity,
-                height: 200,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => Container(
-                  height: 200, color: const Color(0xFFF7F9F8),
-                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4ECDC4))),
+
+            // 2. Linear Gradient Shader overlays for text legibility
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black54,
+                        Colors.transparent,
+                        Colors.transparent,
+                        Colors.black54,
+                      ],
+                      stops: [0.0, 0.25, 0.7, 1.0],
+                    ),
+                  ),
                 ),
-                errorWidget: (_, __, ___) => const SizedBox.shrink(),
               ),
-            // Content
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(18),
-              color: Colors.white,
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 52, height: 52,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            colors: [cat.color.withValues(alpha: 0.15), cat.color.withValues(alpha: 0.05)],
+            ),
+
+            // 3. User Capsule (Top-Left)
+            Positioned(
+              top: 14,
+              left: 14,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    color: Colors.black.withValues(alpha: 0.45),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withValues(alpha: 0.2),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 1.5),
+                          ),
+                          child: Center(
+                            child: Text(
+                              userName.isNotEmpty ? userName[0].toUpperCase() : '?',
+                              style: const TextStyle(
+                                fontFamily: 'Manrope', fontSize: 13, fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
                         ),
-                        child: Icon(cat.icon, color: cat.color, size: 24),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
+                        const SizedBox(width: 8),
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              note.isNotEmpty ? note : cat.label,
+                              widget.isMe ? 'Bạn' : userName,
                               style: const TextStyle(
-                                fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600,
+                                fontFamily: 'Manrope', fontSize: 13, fontWeight: FontWeight.w700,
+                                color: Colors.white,
                               ),
-                              maxLines: 2, overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 3),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: cat.color.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(8),
+                            Text(
+                              _timeAgo(sharedAt),
+                              style: TextStyle(
+                                fontFamily: 'Inter', fontSize: 10,
+                                color: Colors.white.withValues(alpha: 0.65),
                               ),
-                              child: Text(cat.label, style: TextStyle(
-                                fontFamily: 'Inter', fontSize: 11,
-                                fontWeight: FontWeight.w600, color: cat.color,
-                              )),
                             ),
                           ],
                         ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(emoji, style: const TextStyle(fontSize: 24)),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFF6B6B).withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '-${CurrencyFormatter.formatShort(amount)}',
-                              style: const TextStyle(
-                                fontFamily: 'Manrope', fontSize: 15, fontWeight: FontWeight.w800,
-                                color: Color(0xFFFF6B6B),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Action row
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF7F9F8),
-                      borderRadius: BorderRadius.circular(16),
+                      ],
                     ),
+                  ),
+                ),
+              ),
+            ),
+
+            // 4. Comments Floating Capsule (Top-Right)
+            Positioned(
+              top: 14,
+              right: 14,
+              child: _FloatingGlassButton(
+                icon: Icons.chat_bubble_outline_rounded,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  _showCommentSheet(context, widget.docId);
+                },
+              ),
+            ),
+
+            // 5. Expense Details Overlay (Bottom-Left)
+            Positioned(
+              bottom: 14,
+              left: 14,
+              right: 80, // Leave space for reaction buttons on the right
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(22),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    color: Colors.black.withValues(alpha: 0.45),
                     child: Row(
                       children: [
-                        // Like
-                        _ActionChip(
-                          icon: _liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                          label: '${likes + (_liked ? 1 : 0)}',
-                          color: const Color(0xFFFF6B6B),
-                          isActive: _liked,
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            setState(() => _liked = !_liked);
-                            if (_liked) {
-                              FirebaseFirestore.instance
-                                  .collection('feed')
-                                  .doc(widget.docId)
-                                  .update({'likes': FieldValue.increment(1)});
-                            } else {
-                              FirebaseFirestore.instance
-                                  .collection('feed')
-                                  .doc(widget.docId)
-                                  .update({'likes': FieldValue.increment(-1)});
-                            }
-                          },
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withValues(alpha: 0.15),
+                          ),
+                          child: Icon(cat.icon, color: Colors.white, size: 20),
                         ),
-                        const SizedBox(width: 8),
-                        // Comment
-                        _ActionChip(
-                          icon: Icons.chat_bubble_outline_rounded,
-                          label: 'Bình luận',
-                          color: const Color(0xFF4ECDC4),
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            _showCommentSheet(context, widget.docId);
-                          },
-                        ),
-                        const Spacer(),
-                        // Fire reaction
-                        GestureDetector(
-                          onTap: () async {
-                            HapticFeedback.mediumImpact();
-                            final uid = FirebaseAuth.instance.currentUser?.uid;
-                            if (uid == null) return;
-                            final ref = FirebaseFirestore.instance
-                                .collection('feed')
-                                .doc(widget.docId)
-                                .collection('reactions')
-                                .doc(uid);
-                            if (_fired) {
-                              await ref.delete();
-                            } else {
-                              await ref.set({
-                                'emoji': '🔥',
-                                'createdAt': FieldValue.serverTimestamp(),
-                              });
-                            }
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: _fired
-                                  ? const Color(0xFFF0B27A).withValues(alpha: 0.25)
-                                  : const Color(0xFFF0B27A).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text('🔥', style: TextStyle(fontSize: 18)),
-                                if (_fireCount > 0) ...[
-                                  const SizedBox(width: 4),
-                                  Text('$_fireCount', style: TextStyle(
-                                    fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600,
-                                    color: _fired ? const Color(0xFFF0B27A) : AppColors.onSurfaceVariant,
-                                  )),
-                                ],
-                              ],
-                            ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                cat.label,
+                                style: const TextStyle(
+                                  fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '-${CurrencyFormatter.formatShort(amount)}',
+                                style: const TextStyle(
+                                  fontFamily: 'Manrope', fontSize: 14, fontWeight: FontWeight.w800,
+                                  color: Color(0xFFFF6B6B),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
+                ),
+              ),
+            ),
+
+            // Locket-style caption overlay on top of the image
+            if (note.isNotEmpty)
+              Positioned(
+                bottom: 82,
+                left: 20,
+                right: 80, // Leave space for emoji sticker on the right
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.65),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      note,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ),
+
+            // 6. Floating Category Emoji Sticker (Bottom-Right, slightly above fire button)
+            Positioned(
+              bottom: 74,
+              right: 14,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black.withValues(alpha: 0.4),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(emoji, style: const TextStyle(fontSize: 20)),
+                  ),
+                ),
+              ),
+            ),
+
+            // 7. Floating Heart Reaction / Like (Bottom-Right, next to fire button or above it)
+            Positioned(
+              bottom: 130,
+              right: 14,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  _FloatingGlassButton(
+                    icon: _liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    iconColor: _liked ? const Color(0xFFFF6B6B) : Colors.white,
+                    bgColor: _liked ? const Color(0xFFFF6B6B).withValues(alpha: 0.25) : null,
+                    onTap: _toggleLike,
+                  ),
+                  if (_likesCount > 0)
+                    Positioned(
+                      top: -6,
+                      right: -6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF6B6B),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '$_likesCount',
+                          style: const TextStyle(
+                            fontFamily: 'Inter', fontSize: 9, fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
+
+            // 8. Floating Fire Reaction (Bottom-Right)
+            Positioned(
+              bottom: 14,
+              right: 14,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  AnimatedScale(
+                    scale: _fired ? 1.15 : 1.0,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOutBack,
+                    child: _FloatingGlassButton(
+                      icon: Icons.local_fire_department_rounded,
+                      iconColor: _fired ? const Color(0xFFFF9F43) : Colors.white,
+                      bgColor: _fired ? const Color(0xFFFF9F43).withValues(alpha: 0.3) : null,
+                      onTap: _toggleFire,
+                    ),
+                  ),
+                  if (_fireCount > 0)
+                    Positioned(
+                      top: -6,
+                      right: -6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF9F43),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '$_fireCount',
+                          style: const TextStyle(
+                            fontFamily: 'Inter', fontSize: 9, fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            // 9. Double-tap Heart Pop Animation
+            if (_showHeartAnim)
+              Positioned.fill(
+                child: Center(
+                  child: AnimatedBuilder(
+                    animation: _heartScale,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: _heartScale.value,
+                        child: const Icon(
+                          Icons.favorite_rounded,
+                          color: Color(0xFFFF6B6B),
+                          size: 110,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black26,
+                              blurRadius: 20,
+                              offset: Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -633,23 +840,34 @@ class _FeedCardState extends State<_FeedCard> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
+        final sheetDark = Theme.of(context).brightness == Brightness.dark;
         return Container(
           height: MediaQuery.of(ctx).size.height * 0.6,
           padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          decoration: BoxDecoration(
+            color: sheetDark ? const Color(0xFF0F1413) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Column(
             children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              )),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: sheetDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
               const SizedBox(height: 16),
-              const Text('Bình luận', style: TextStyle(
-                fontFamily: 'Manrope', fontSize: 18, fontWeight: FontWeight.w700,
-              )),
+              Text(
+                'Bình luận',
+                style: TextStyle(
+                  fontFamily: 'Manrope',
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: sheetDark ? Colors.white : Colors.black,
+                ),
+              ),
               const SizedBox(height: 16),
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
@@ -669,19 +887,30 @@ class _FeedCardState extends State<_FeedCard> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.chat_bubble_outline_rounded, size: 48, color: Colors.grey.shade300),
+                            Icon(
+                              Icons.chat_bubble_outline_rounded,
+                              size: 48,
+                              color: sheetDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                            ),
                             const SizedBox(height: 12),
-                            Text('Chưa có bình luận nào', style: TextStyle(
-                              fontFamily: 'Inter', fontSize: 15,
-                              color: Colors.grey.shade500,
-                            )),
+                            Text(
+                              'Chưa có bình luận nào',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 15,
+                                color: sheetDark ? Colors.grey.shade500 : Colors.grey.shade500,
+                              ),
+                            ),
                           ],
                         ),
                       );
                     }
                     return ListView.separated(
                       itemCount: comments.length,
-                      separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey.shade100),
+                      separatorBuilder: (_, __) => Divider(
+                        height: 1,
+                        color: sheetDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                      ),
                       itemBuilder: (context, index) {
                         final data = comments[index].data() as Map<String, dynamic>;
                         return Padding(
@@ -690,7 +919,8 @@ class _FeedCardState extends State<_FeedCard> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Container(
-                                width: 36, height: 36,
+                                width: 36,
+                                height: 36,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: const Color(0xFF4ECDC4).withValues(alpha: 0.15),
@@ -704,12 +934,21 @@ class _FeedCardState extends State<_FeedCard> {
                                   children: [
                                     Text(
                                       data['userName'] ?? 'Ai đó',
-                                      style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600),
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: sheetDark ? Colors.white70 : Colors.black87,
+                                      ),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
                                       data['text'] ?? '',
-                                      style: const TextStyle(fontFamily: 'Inter', fontSize: 14),
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 14,
+                                        color: sheetDark ? Colors.white.withValues(alpha: 0.9) : Colors.black87,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -728,16 +967,21 @@ class _FeedCardState extends State<_FeedCard> {
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF7F9F8),
+                        color: sheetDark ? const Color(0xFF1B2221) : const Color(0xFFF7F9F8),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: TextField(
                         controller: commentCtrl,
+                        style: TextStyle(color: sheetDark ? Colors.white : Colors.black),
                         decoration: InputDecoration(
                           hintText: 'Viết bình luận...',
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          hintStyle: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Colors.grey.shade400),
+                          hintStyle: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14,
+                            color: sheetDark ? Colors.grey.shade600 : Colors.grey.shade400,
+                          ),
                         ),
                       ),
                     ),
@@ -762,7 +1006,8 @@ class _FeedCardState extends State<_FeedCard> {
                       commentCtrl.clear();
                     },
                     child: Container(
-                      width: 44, height: 44,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(colors: [Color(0xFF006A65), Color(0xFF4ECDC4)]),
                         borderRadius: BorderRadius.circular(22),
@@ -789,38 +1034,36 @@ class _FeedCardState extends State<_FeedCard> {
   }
 }
 
-class _ActionChip extends StatelessWidget {
+class _FloatingGlassButton extends StatelessWidget {
   final IconData icon;
-  final String label;
-  final Color color;
-  final bool isActive;
+  final Color iconColor;
+  final Color? bgColor;
   final VoidCallback onTap;
 
-  const _ActionChip({
-    required this.icon, required this.label,
-    required this.color, this.isActive = false, required this.onTap,
+  const _FloatingGlassButton({
+    required this.icon,
+    this.iconColor = Colors.white,
+    this.bgColor,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isActive ? color.withValues(alpha: 0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: isActive ? color : AppColors.onSurfaceVariant),
-            const SizedBox(width: 4),
-            Text(label, style: TextStyle(
-              fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600,
-              color: isActive ? color : AppColors.onSurfaceVariant,
-            )),
-          ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: bgColor ?? Colors.black.withValues(alpha: 0.4),
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
         ),
       ),
     );

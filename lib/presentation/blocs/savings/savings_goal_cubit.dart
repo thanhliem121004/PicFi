@@ -36,6 +36,7 @@ class SavingsGoalCubit extends Cubit<SavingsGoalState> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   StreamSubscription? _goalsSub;
+  StreamSubscription? _authSub;
 
   SavingsGoalCubit() : super(const SavingsGoalState()) {
     _listenToGoals();
@@ -47,7 +48,7 @@ class SavingsGoalCubit extends Cubit<SavingsGoalState> {
       _firestore.collection('users').doc(_uid).collection('savings_goals');
 
   void _listenToGoals() {
-    _auth.authStateChanges().listen((user) {
+    _authSub = _auth.authStateChanges().listen((user) {
       _goalsSub?.cancel();
       if (user != null) {
         _goalsSub = _firestore
@@ -122,6 +123,7 @@ class SavingsGoalCubit extends Cubit<SavingsGoalState> {
   @override
   Future<void> close() {
     _goalsSub?.cancel();
+    _authSub?.cancel();
     return super.close();
   }
 }

@@ -246,6 +246,97 @@ class _BackupScreenState extends State<BackupScreen>
                                   ),
                                 ),
                               ),
+                              const SizedBox(height: 32),
+                              const Divider(height: 1, color: Color(0xFFE0E0E0)),
+                              const SizedBox(height: 24),
+                              
+                              // Section for Database Reset & Mock Data Seeding
+                              Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF4D4D).withValues(alpha: 0.05),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: const Color(0xFFFF4D4D).withValues(alpha: 0.15)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Row(
+                                      children: [
+                                        Icon(Icons.warning_amber_rounded, color: Color(0xFFFF4D4D), size: 24),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Khu vực nguy hiểm',
+                                          style: TextStyle(
+                                            fontFamily: 'Manrope',
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFFFF4D4D),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Hành động này sẽ xóa toàn bộ giao dịch, ví, ngân sách, mục tiêu tích lũy hiện tại của bạn trên Firestore và thiết lập lại dữ liệu mẫu chất lượng cao.',
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 13,
+                                        color: Colors.grey.shade700,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: GestureDetector(
+                                        onTap: state.isLoading ? null : () => _confirmAndClearData(),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(vertical: 14),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFF4D4D),
+                                            borderRadius: BorderRadius.circular(16),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: const Color(0xFFFF4D4D).withValues(alpha: 0.25),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ],
+                                          ),
+                                          child: state.isLoading
+                                              ? const Center(
+                                                  child: SizedBox(
+                                                    width: 20,
+                                                    height: 20,
+                                                    child: CircularProgressIndicator(
+                                                      strokeWidth: 2.5,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                )
+                                              : const Row(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
+                                                    SizedBox(width: 8),
+                                                    Text(
+                                                      'Làm sạch & Cài dữ liệu mẫu',
+                                                      style: TextStyle(
+                                                        fontFamily: 'Manrope',
+                                                        fontSize: 14,
+                                                        fontWeight: FontWeight.w800,
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -288,6 +379,70 @@ class _BackupScreenState extends State<BackupScreen>
     }
     HapticFeedback.mediumImpact();
     context.read<BackupCubit>().restore(password);
+  }
+
+  void _confirmAndClearData() {
+    HapticFeedback.heavyImpact();
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Color(0xFFFF4D4D), size: 28),
+              SizedBox(width: 8),
+              Text(
+                'Xác nhận dọn dẹp',
+                style: TextStyle(
+                  fontFamily: 'Manrope',
+                  fontWeight: FontWeight.w800,
+                  fontSize: 20,
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Hành động này sẽ xoá sạch mọi dữ liệu ví, giao dịch, ngân sách, mục tiêu tích lũy của bạn trên Firestore và tạo lại dữ liệu mẫu chất lượng cao. Bạn có chắc chắn muốn tiếp tục không?',
+            style: TextStyle(fontFamily: 'Inter', height: 1.4, fontSize: 14),
+          ),
+          actionsPadding: const EdgeInsets.only(right: 16, bottom: 16, left: 16),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Hủy',
+                style: TextStyle(
+                  fontFamily: 'Manrope',
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                HapticFeedback.mediumImpact();
+                context.read<BackupCubit>().clearAndSeedData();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF4D4D),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Đồng ý xóa & tạo lại',
+                style: TextStyle(
+                  fontFamily: 'Manrope',
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showError(String msg) {
